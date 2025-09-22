@@ -184,6 +184,8 @@ export default function ImageGeneratorPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [isSavingAdminSettings, setIsSavingAdminSettings] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [showSavedMessage, setShowSavedMessage] = useState(false);
   const [initialSettingsApplied, setInitialSettingsApplied] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [showAdminPrompt, setShowAdminPrompt] = useState(false);
@@ -621,28 +623,28 @@ export default function ImageGeneratorPage() {
   useEffect(() => {
     if (!initialSettingsApplied) return; // Don't run on initial load
 
-    // Only apply locked settings to regular users, not admins
-    if (!isAdmin) {
-      if (adminSettings?.backgroundControls?.locked) {
-        applyLockedBackground(adminSettings);
-      } else {
-        // If background is unlocked, ensure the overlay is shown
-        setShowCanvasBackgroundOverlay(true);
-      }
-      
-      if (adminSettings?.pageBackgroundControls?.locked) {
-        applyLockedPageBackground(adminSettings);
-      } else {
-        // If page background becomes unlocked, reset to default user-controlled state
-        setPageBackgroundType('gradient');
-        setPageGradientColor1('#7c3aed');
-        setPageGradientColor2('#1e40af');
-        setPageBackgroundColor('#1e1b4b');
-        setPageBackgroundImage(null);
-        setPageBackgroundScale(1.0);
-        setPageBackgroundX(0);
-        setPageBackgroundY(0);
-      }
+    // Apply locked settings for both regular users and admins (for preview)
+    if (adminSettings?.backgroundControls?.locked) {
+      console.log('🎨 Applying existing locked canvas background settings');
+      applyLockedBackground(adminSettings);
+    } else if (!isAdmin) {
+      // If background is unlocked, ensure the overlay is shown (only for non-admins)
+      setShowCanvasBackgroundOverlay(true);
+    }
+    
+    if (adminSettings?.pageBackgroundControls?.locked) {
+      console.log('🎨 Applying existing locked page background settings');
+      applyLockedPageBackground(adminSettings);
+    } else if (!isAdmin) {
+      // If page background becomes unlocked, reset to default user-controlled state (only for non-admins)
+      setPageBackgroundType('gradient');
+      setPageGradientColor1('#7c3aed');
+      setPageGradientColor2('#1e40af');
+      setPageBackgroundColor('#1e1b4b');
+      setPageBackgroundImage(null);
+      setPageBackgroundScale(1.0);
+      setPageBackgroundX(0);
+      setPageBackgroundY(0);
     }
     
     // FIXED: Only apply admin canvas size if canvas size is LOCKED
@@ -673,32 +675,28 @@ export default function ImageGeneratorPage() {
     }
   }, [initialSettingsApplied, isAdmin, adminSettings, applyLockedBackground, applyLockedPageBackground]);
 
-  // Persist admin settings locally whenever they change (helps persistence in demo mode)
-  // Guarded to avoid overwriting stored values with defaults during initial load
-  useEffect(() => {
-    if (!initialSettingsApplied || !adminSettingsLoaded) return;
-    try {
-      localStorage.setItem('etendy_admin_settings', JSON.stringify(adminSettings));
-      console.log('Admin settings persisted to localStorage');
-    } catch (e) {
-      console.warn('Failed to persist admin settings to localStorage:', e);
-    }
-  }, [adminSettings, initialSettingsApplied, adminSettingsLoaded]);
+  // REMOVED: Automatic save on settings change
+  // Settings are now only saved when the "Save Settings" button is clicked
 
   const saveAdminSettings = useCallback(async () => {
     // Save to localStorage only (Base44 disabled)
-    console.log('🔥 Save Settings button clicked!');
+    console.log('🔥🔥🔥 SAVE SETTINGS BUTTON CLICKED! 🔥🔥🔥');
+    console.log('📊 Current adminSettings state:', adminSettings);
     setIsSavingAdminSettings(true);
     try {
-      console.log('Saving admin settings to localStorage (Base44 disabled)');
-      console.log('Settings to save:', adminSettings);
+      console.log('💾 Saving admin settings to localStorage (Base44 disabled)');
+      console.log('📝 Settings to save:', JSON.stringify(adminSettings, null, 2));
       localStorage.setItem('etendy_admin_settings', JSON.stringify(adminSettings));
-      alert('Settings saved successfully!');
+      console.log('✅ Settings saved successfully to localStorage!');
+      setHasUnsavedChanges(false); // Clear unsaved changes flag
+      setShowSavedMessage(true); // Show "Saved!" message
+      setTimeout(() => setShowSavedMessage(false), 2000); // Hide after 2 seconds
     } catch (error) {
-      console.error('Failed to save settings locally:', error);
+      console.error('❌ Failed to save settings locally:', error);
       alert('Failed to save settings. Please try again.');
     } finally {
       setIsSavingAdminSettings(false);
+      console.log('🏁 Save operation completed');
     }
   }, [adminSettings]);
   // Handle admin settings changes and apply locked settings immediately
@@ -706,6 +704,9 @@ export default function ImageGeneratorPage() {
     const prevSettings = adminSettings;
     console.log('🔄 ADMIN SETTINGS CHANGE RECEIVED:', { prevSettings, newSettings });
     console.log('📊 Checking pageBackgroundControls:', newSettings?.pageBackgroundControls);
+    
+    // Mark as having unsaved changes
+    setHasUnsavedChanges(true);
 
     // If page background lock is being enabled for the first time, initialize with current state
     if (!prevSettings?.pageBackgroundControls?.locked && newSettings?.pageBackgroundControls?.locked && !newSettings?.pageBackgroundControls?.lockedSettings) {
@@ -765,17 +766,17 @@ export default function ImageGeneratorPage() {
     const canvasBackgroundLockChanged = prevSettings?.backgroundControls?.locked !== newSettings?.backgroundControls?.locked;
     const canvasBackgroundSettingsChanged = JSON.stringify(prevSettings?.backgroundControls?.lockedSettings) !== JSON.stringify(newSettings?.backgroundControls?.lockedSettings);
 
-    // Apply locked settings only for non-admin users
-    if (!isAdmin) {
-      // Apply page background if locked and settings exist
-      if (newSettings?.pageBackgroundControls?.locked && newSettings?.pageBackgroundControls?.lockedSettings && (pageBackgroundLockChanged || pageBackgroundSettingsChanged)) {
-        applyLockedPageBackground(newSettings);
-      }
+    // Apply locked settings for preview (admins can see changes immediately)
+    // Apply page background if locked and settings exist
+    if (newSettings?.pageBackgroundControls?.locked && newSettings?.pageBackgroundControls?.lockedSettings && (pageBackgroundLockChanged || pageBackgroundSettingsChanged)) {
+      console.log('🎨 Applying locked page background settings for preview');
+      applyLockedPageBackground(newSettings);
+    }
 
-      // Apply canvas background if locked and settings exist
-      if (newSettings?.backgroundControls?.locked && newSettings?.backgroundControls?.lockedSettings && (canvasBackgroundLockChanged || canvasBackgroundSettingsChanged)) {
-        applyLockedBackground(newSettings);
-      }
+    // Apply canvas background if locked and settings exist
+    if (newSettings?.backgroundControls?.locked && newSettings?.backgroundControls?.lockedSettings && (canvasBackgroundLockChanged || canvasBackgroundSettingsChanged)) {
+      console.log('🎨 Applying locked canvas background settings for preview');
+      applyLockedBackground(newSettings);
     }
   }, [adminSettings, isAdmin, applyLockedPageBackground, applyLockedBackground, pageBackgroundType, pageBackgroundColor, pageGradientColor1, pageGradientColor2, pageBackgroundImage, pageBackgroundScale, pageBackgroundX, pageBackgroundY, backgroundType, backgroundColor, gradientColor1, gradientColor2, gradientAngle, backgroundImage, backgroundImageScale, backgroundImageX, backgroundImageY, overlayType, overlayColor, overlayOpacity, overlayGradientColor1, overlayGradientOpacity1, overlayGradientColor2, overlayGradientOpacity2, overlayGradientAngle, setPageBackgroundType, setPageBackgroundColor, setPageGradientColor1, setPageGradientColor2, setPageBackgroundImage, setBackgroundType, setBackgroundColor, setGradientColor1, setGradientColor2, setBackgroundImage]);
   
@@ -965,11 +966,14 @@ export default function ImageGeneratorPage() {
   }, []);
 
   const loadTemplates = useCallback(async () => {
+    console.log('🔄 LOAD TEMPLATES CALLED');
     setIsLoadingTemplates(true);
     try {
       console.log('Loading templates from localStorage only (Base44 disabled)');
       // Skip API call, load from localStorage only
       const localTemplates = JSON.parse(localStorage.getItem('etendy_templates') || '[]');
+      console.log('📋 Loaded templates from localStorage:', localTemplates.map(t => ({ name: t.name, id: t.id })));
+      console.log('📊 Total loaded templates:', localTemplates.length);
       setTemplates(localTemplates);
     } catch (error) {
       console.error('Failed to load templates from localStorage:', error);
@@ -1375,136 +1379,243 @@ export default function ImageGeneratorPage() {
   ]);
 
   const handleSaveTemplate = useCallback(async (templateName) => {
+    console.log('🚀🚀🚀 HANDLE SAVE TEMPLATE CALLED with name:', templateName);
+    console.log('📊 Current state - elements:', elements.length, 'canvasWidth:', canvasWidth, 'canvasHeight:', canvasHeight);
+    console.log('👤 Admin status:', { isAdmin, currentUser });
+    
+    // Check what's currently in localStorage for templates
+    const existingTemplatesRaw = localStorage.getItem('etendy_templates');
+    console.log('🔍 Raw localStorage templates:', existingTemplatesRaw);
+    const existingTemplates = JSON.parse(existingTemplatesRaw || '[]');
+    console.log('🔍 Parsed existing templates:', existingTemplates.map(t => ({ name: t.name, id: t.id })));
+    
+    // Add global functions for debugging
+    window.clearEtendyStorage = () => {
+      localStorage.removeItem('etendy_templates');
+      localStorage.removeItem('etendy_gallery');
+      localStorage.removeItem('etendy_admin_settings');
+      console.log('🧹 Cleared all Etendy localStorage data');
+    };
+    
+    window.checkEtendyTemplates = () => {
+      const templates = JSON.parse(localStorage.getItem('etendy_templates') || '[]');
+      console.log('📋 Current templates in localStorage:', templates.map(t => ({ name: t.name, id: t.id, created: t.created_date })));
+      console.log('📊 Total templates:', templates.length);
+      return templates;
+    };
+    
+    window.forceCleanStorage = () => {
+      localStorage.removeItem('etendy_gallery');
+      localStorage.removeItem('etendy_admin_settings');
+      console.log('🧹 Force cleared gallery and admin settings');
+      
+      // Check storage usage
+      let totalSize = 0;
+      for (let key in localStorage) {
+        if (localStorage.hasOwnProperty(key)) {
+          const size = localStorage[key].length;
+          totalSize += size;
+          console.log(`  ${key}: ${(size / 1024).toFixed(1)}KB`);
+        }
+      }
+      console.log(`  Total after cleanup: ${(totalSize / 1024).toFixed(1)}KB`);
+    };
+    
+    alert(`Template save started for: ${templateName}. Currently have ${existingTemplates.length} templates.`);
     setIsSavingTemplate(true);
     try {
-      // Create thumbnail
+      console.log('💾 Saving template to localStorage (API disabled due to auth issues)...');
+      
+      // Build template data and thumbnail via dataURL
       const exportCanvas = document.createElement('canvas');
       exportCanvas.width = canvasWidth;
       exportCanvas.height = canvasHeight;
       const ctx = exportCanvas.getContext('2d');
-      await drawFinalImage(ctx);
+      console.log('🎨 Drawing final image for template thumbnail...');
+      console.log('📐 Canvas dimensions:', { width: canvasWidth, height: canvasHeight });
+      console.log('📦 Elements to save:', elements.length);
       
-      const blob = await new Promise(resolve => exportCanvas.toBlob(resolve, 'image/jpeg', 0.6)); // Reduced quality to 0.6 for faster uploads
-      if (!blob) {
-        throw new Error("Failed to create thumbnail.");
+      try {
+        await drawFinalImage(ctx);
+        console.log('✅ drawFinalImage completed successfully');
+      } catch (drawError) {
+        console.error('❌ Error in drawFinalImage:', drawError);
+        throw new Error(`Failed to generate thumbnail: ${drawError.message}`);
       }
-
-      // Create a smaller file name to reduce potential issues
-      const timestamp = Date.now();
-      const file = new File([blob], `template-${timestamp}.jpg`, { type: 'image/jpeg' });
-
-      // Add timeout and retry logic
-      let uploadResult;
-      let attempts = 0;
-      const maxAttempts = 3;
       
-      while (attempts < maxAttempts) {
-        try {
-          attempts++;
-          // Add a timeout promise
-          const uploadPromise = UploadFile({ file });
-          const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Upload timeout')), 30000) // 30 second timeout
-          );
-          
-          uploadResult = await Promise.race([uploadPromise, timeoutPromise]);
-          break; // If successful, break out of retry loop
-        } catch (error) {
-          console.log(`Template upload attempt ${attempts} failed:`, error.message);
-          if (attempts === maxAttempts) {
-            throw new Error(`Template upload failed after ${maxAttempts} attempts. ${error.message.includes('timeout') || error.message.includes('DatabaseTimeout') ? 'The server is experiencing high load. Please try again in a few moments.' : error.message}`);
-          }
-          // Wait before retrying
-          await new Promise(resolve => setTimeout(resolve, 2000 * attempts));
-        }
-      }
+      // Create a very small thumbnail canvas for minimal storage usage
+      const thumbnailCanvas = document.createElement('canvas');
+      thumbnailCanvas.width = 100; // Very small thumbnail for maximum storage efficiency
+      thumbnailCanvas.height = 100;
+      const thumbnailCtx = thumbnailCanvas.getContext('2d');
+      
+      // Draw the full canvas scaled down to thumbnail size
+      thumbnailCtx.drawImage(exportCanvas, 0, 0, canvasWidth, canvasHeight, 0, 0, 100, 100);
+      
+      // Use very low quality for tiny file size
+      const dataUrl = thumbnailCanvas.toDataURL('image/jpeg', 0.1); // Extremely low quality for minimal size
+      console.log('📸 Small thumbnail generated successfully, length:', dataUrl.length);
 
-      if (!uploadResult || !uploadResult.file_url) {
-        throw new Error("Failed to get file URL from upload.");
-      }
-
-      // Save template data with retry logic
+      // Optimize template data - exclude large background images to save space
       const templateData = {
         elements: JSON.parse(JSON.stringify(elements)),
         canvasWidth,
         canvasHeight,
-        backgroundType, gradientColor1, gradientColor2, gradientAngle, backgroundColor,
-        backgroundImage, backgroundImageScale, backgroundImageX, backgroundImageY,
-        overlayType, overlayColor, overlayOpacity, overlayGradientColor1,
-        overlayGradientOpacity1, overlayGradientColor2, overlayGradientOpacity2,
+        backgroundType, 
+        gradientColor1, 
+        gradientColor2, 
+        gradientAngle, 
+        backgroundColor,
+        // Exclude backgroundImage to save massive storage space
+        backgroundImage: backgroundImage ? '[BACKGROUND_IMAGE_EXCLUDED]' : null,
+        backgroundImageScale, 
+        backgroundImageX, 
+        backgroundImageY,
+        overlayType, 
+        overlayColor, 
+        overlayOpacity, 
+        overlayGradientColor1,
+        overlayGradientOpacity1, 
+        overlayGradientColor2, 
+        overlayGradientOpacity2,
         overlayGradientAngle,
       };
-
-      // Retry template creation
-      attempts = 0;
-      while (attempts < maxAttempts) {
-        try {
-          attempts++;
-          await Template.create({
-            name: templateName,
-            thumbnail_url: uploadResult.file_url,
-            template_data: templateData
-          });
-          break; // If successful, break out of retry loop
-        } catch (error) {
-          console.log(`Template save attempt ${attempts} failed:`, error.message);
-          if (attempts === maxAttempts) {
-            throw new Error(`Template save failed after ${maxAttempts} attempts. ${error.message.includes('DatabaseTimeout') ? 'Database is experiencing high load. Please try again in a few moments.' : error.message}`);
-          }
-          // Wait before retrying
-          await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
+      
+      console.log('💾 Template data size optimization:', {
+        hasBackgroundImage: !!backgroundImage,
+        backgroundImageExcluded: backgroundImage ? true : false,
+        elementsCount: elements.length
+      });
+      
+      const localTemplate = {
+        id: crypto.randomUUID(),
+        name: templateName,
+        thumbnail_url: dataUrl,
+        template_data: templateData,
+        created_date: new Date().toISOString(),
+      };
+      
+      console.log('📦 Template data prepared:', { name: templateName, elements: elements.length });
+      
+      // Check localStorage usage before saving
+      console.log('💾 LocalStorage usage check:');
+      let totalSize = 0;
+      for (let key in localStorage) {
+        if (localStorage.hasOwnProperty(key)) {
+          const size = localStorage[key].length;
+          totalSize += size;
+          console.log(`  ${key}: ${(size / 1024).toFixed(1)}KB`);
         }
       }
-
-      await loadTemplates();
+      console.log(`  Total: ${(totalSize / 1024).toFixed(1)}KB`);
+      
+      // Storage quota management
+      const local = JSON.parse(localStorage.getItem('etendy_templates') || '[]');
+      console.log('📋 Current templates count:', local.length);
+      
+      // Aggressive proactive storage management - clear everything when we have 2+ templates
+      if (local.length >= 2) {
+        console.log('⚠️ Have 2+ templates, clearing ALL other data to make space...');
+        // Clear everything except templates
+        const templatesToKeep = localStorage.getItem('etendy_templates');
+        localStorage.clear(); // Clear everything
+        if (templatesToKeep) {
+          localStorage.setItem('etendy_templates', templatesToKeep); // Restore templates
+        }
+        console.log('🧹 Cleared ALL localStorage except templates');
+      }
+      
+      // If we already have 4 templates, remove the oldest one first
+      let templatesToKeep = local;
+      if (local.length >= 4) {
+        console.log('⚠️ Already have 4 templates, removing oldest to make space...');
+        templatesToKeep = local.slice(0, 3); // Keep only 3 most recent
+        console.log('🗑️ Removed oldest template:', local[local.length - 1]?.name);
+      }
+      
+      // Keep existing templates and add new one (limit to 4 templates max)
+      const updated = [localTemplate, ...templatesToKeep];
+      console.log('📋 Template save attempt:', {
+        newTemplate: templateName,
+        existingCount: local.length,
+        totalAfterSave: updated.length,
+        existingTemplates: local.map(t => t.name)
+      });
+      
+      try {
+        localStorage.setItem('etendy_templates', JSON.stringify(updated));
+        console.log('✅ Template saved to localStorage successfully!');
+      } catch (quotaError) {
+        if (quotaError.name === 'QuotaExceededError') {
+          console.log('⚠️ Storage quota exceeded, trying progressive cleanup...');
+          
+          // First try: Clear everything and keep 4 templates
+          localStorage.clear(); // Clear everything
+          const limitedTemplates = [localTemplate, ...local.slice(0, 3)]; // Keep 4 total
+          console.log('🔄 Trying to save with 4 templates:', limitedTemplates.map(t => t.name));
+          
+          try {
+            localStorage.setItem('etendy_templates', JSON.stringify(limitedTemplates));
+            console.log('✅ Template saved after clearing all data (kept 4 templates)');
+          } catch (stillFullError) {
+            // Second try: Keep only 2 templates
+            const minimalTemplates = [localTemplate, ...local.slice(0, 1)]; // Keep 2 total
+            console.log('🔄 Trying to save with 2 templates:', minimalTemplates.map(t => t.name));
+            try {
+              localStorage.setItem('etendy_templates', JSON.stringify(minimalTemplates));
+              console.log('✅ Template saved after cleanup (kept 2 templates)');
+            } catch (finalError) {
+              // Last resort: Keep only this template
+              const singleTemplate = [localTemplate];
+              console.log('🔄 Last resort: saving only this template:', singleTemplate.map(t => t.name));
+              localStorage.setItem('etendy_templates', JSON.stringify(singleTemplate));
+              console.log('✅ Template saved (kept only this template)');
+            }
+          }
+        } else {
+          throw quotaError;
+        }
+      }
+      
+      // Update templates state with the saved templates
+      const savedTemplates = JSON.parse(localStorage.getItem('etendy_templates') || '[]');
+      console.log('🔄 Updating templates state with:', savedTemplates.map(t => ({ name: t.name, id: t.id })));
+      console.log('📊 Total templates after save:', savedTemplates.length);
+      setTemplates(savedTemplates);
       setShowTemplatesPanel(true);
       setShowSaveSuccess(true);
-      setTimeout(() => setShowSaveSuccess(false), 2500); // Changed to show for 2.5s
+      setTimeout(() => setShowSaveSuccess(false), 2500);
+      
     } catch (error) {
-      console.warn('Template save via API failed, saving to localStorage instead:', error);
-      try {
-        // Build template data and thumbnail via dataURL fallback
-        const exportCanvas = document.createElement('canvas');
-        exportCanvas.width = canvasWidth;
-        exportCanvas.height = canvasHeight;
-        const ctx = exportCanvas.getContext('2d');
-        await drawFinalImage(ctx);
-        const dataUrl = exportCanvas.toDataURL('image/jpeg', 0.6);
-
-        const templateData = {
-          elements: JSON.parse(JSON.stringify(elements)),
-          canvasWidth,
-          canvasHeight,
-          backgroundType, gradientColor1, gradientColor2, gradientAngle, backgroundColor,
-          backgroundImage, backgroundImageScale, backgroundImageX, backgroundImageY,
-          overlayType, overlayColor, overlayOpacity, overlayGradientColor1,
-          overlayGradientOpacity1, overlayGradientColor2, overlayGradientOpacity2,
-          overlayGradientAngle,
-        };
-        const localTemplate = {
-          id: crypto.randomUUID(),
-          name: templateName,
-          thumbnail_url: dataUrl,
-          template_data: templateData,
-          created_date: new Date().toISOString(),
-        };
-        const local = JSON.parse(localStorage.getItem('etendy_templates') || '[]');
-        const updated = [localTemplate, ...local];
-        localStorage.setItem('etendy_templates', JSON.stringify(updated));
-        setTemplates(updated);
-        setShowTemplatesPanel(true);
-        setShowSaveSuccess(true);
-        setTimeout(() => setShowSaveSuccess(false), 2500);
-      } catch (lsError) {
-        console.error('Failed to save template locally:', lsError);
-        setSaveErrorMessage('Failed to save template. Please try again.');
-        setShowSaveError(true);
-        setTimeout(() => setShowSaveError(false), 5000);
+      console.error('❌ Failed to save template:', error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
+      
+      // More specific error handling
+      let errorMessage = 'Failed to save template. Please try again.';
+      if (error.message) {
+        errorMessage = `Template save failed: ${error.message}`;
       }
+      
+      // Special handling for quota errors
+      if (error.name === 'QuotaExceededError') {
+        errorMessage = 'Storage is full. Old templates were removed to make space, but the save still failed. Please try again.';
+      }
+      
+      setSaveErrorMessage(errorMessage);
+      setShowSaveError(true);
+      setTimeout(() => setShowSaveError(false), 5000);
+      
+      // Also show alert for immediate feedback
+      alert(`Template save failed: ${error.message || 'Unknown error'}`);
     } finally {
       setIsSavingTemplate(false);
+      console.log('🏁 Template save operation completed');
     }
-  }, [elements, canvasWidth, canvasHeight, backgroundType, gradientColor1, gradientColor2, gradientAngle, backgroundColor, backgroundImage, backgroundImageScale, backgroundImageX, backgroundImageY, overlayType, overlayColor, overlayOpacity, overlayGradientColor1, overlayGradientOpacity1, overlayGradientColor2, overlayGradientOpacity2, overlayGradientAngle, loadTemplates, drawFinalImage]);
+  }, [elements, canvasWidth, canvasHeight, backgroundType, gradientColor1, gradientColor2, gradientAngle, backgroundColor, backgroundImage, backgroundImageScale, backgroundImageX, backgroundImageY, overlayType, overlayColor, overlayOpacity, overlayGradientColor1, overlayGradientOpacity1, overlayGradientColor2, overlayGradientOpacity2, overlayGradientAngle, drawFinalImage]);
 
   const handleDeleteTemplate = useCallback(async (templateId) => {
     try {
@@ -1698,6 +1809,8 @@ export default function ImageGeneratorPage() {
   }, [canvasWidth, canvasHeight, drawFinalImage]);
 
   const handleSaveToGallery = useCallback(async () => {
+    console.log('💾 SAVE TO GALLERY CALLED');
+    console.log('👤 Admin status:', { isAdmin, currentUser });
     setIsSaving(true);
     try {
       const exportCanvas = document.createElement('canvas');
@@ -1717,39 +1830,41 @@ export default function ImageGeneratorPage() {
         overlayGradientAngle,
       };
 
-      const blob = await new Promise(resolve => exportCanvas.toBlob(resolve, 'image/jpeg', 0.8));
-      const timestamp = Date.now();
-      const file = new File([blob], `etendy-${timestamp}.jpg`, { type: 'image/jpeg' });
-
-      let savedViaApi = false;
+      // Skip API and save directly to localStorage due to auth issues
+      console.log('💾 Saving to localStorage gallery (API disabled due to auth issues)...');
+      const dataUrl = exportCanvas.toDataURL('image/jpeg', 0.8);
+      const newItem = {
+        id: crypto.randomUUID(),
+        image_url: dataUrl,
+        canvas_data: canvasData,
+        created_date: new Date().toISOString(),
+      };
+      
+      const local = JSON.parse(localStorage.getItem('etendy_gallery') || '[]');
+      const updated = [newItem, ...local.slice(0, 19)]; // Keep max 20 gallery items
+      
       try {
-        const uploadResult = await UploadFile({ file });
-        if (!uploadResult || !uploadResult.file_url) {
-          throw new Error('Failed to upload image.');
-        }
-        await GeneratedImage.create({
-          image_url: uploadResult.file_url,
-          canvas_data: canvasData,
-        });
-        savedViaApi = true;
-        await loadGallery();
-      } catch (apiError) {
-        console.warn('API save failed; saving to localStorage gallery instead:', apiError);
-        const dataUrl = exportCanvas.toDataURL('image/jpeg', 0.8);
-        const newItem = {
-          id: crypto.randomUUID(),
-          image_url: dataUrl,
-          canvas_data: canvasData,
-          created_date: new Date().toISOString(),
-        };
-        try {
-          const local = JSON.parse(localStorage.getItem('etendy_gallery') || '[]');
-          const updated = [newItem, ...local];
-          localStorage.setItem('etendy_gallery', JSON.stringify(updated));
-          setGalleryImages(updated);
-        } catch (lsError) {
-          console.error('Failed to save gallery item to localStorage:', lsError);
-          throw lsError;
+        localStorage.setItem('etendy_gallery', JSON.stringify(updated));
+        setGalleryImages(updated);
+        console.log('✅ Gallery item saved to localStorage successfully!');
+      } catch (quotaError) {
+        if (quotaError.name === 'QuotaExceededError') {
+          console.log('⚠️ Gallery storage quota exceeded, cleaning up...');
+          // Keep fewer gallery items
+          const limitedGallery = [newItem, ...local.slice(0, 9)]; // Keep only 10
+          try {
+            localStorage.setItem('etendy_gallery', JSON.stringify(limitedGallery));
+            setGalleryImages(limitedGallery);
+            console.log('✅ Gallery item saved after cleanup (kept 10 items)');
+          } catch (stillFullError) {
+            // Keep even fewer
+            const minimalGallery = [newItem, ...local.slice(0, 4)]; // Keep only 5
+            localStorage.setItem('etendy_gallery', JSON.stringify(minimalGallery));
+            setGalleryImages(minimalGallery);
+            console.log('✅ Gallery item saved after aggressive cleanup (kept 5 items)');
+          }
+        } else {
+          throw quotaError;
         }
       }
 
@@ -1763,7 +1878,7 @@ export default function ImageGeneratorPage() {
     } finally {
       setIsSaving(false);
     }
-  }, [canvasWidth, canvasHeight, drawFinalImage, elements, backgroundType, gradientColor1, gradientColor2, gradientAngle, backgroundColor, backgroundImage, backgroundImageScale, backgroundImageX, backgroundImageY, overlayType, overlayColor, overlayOpacity, overlayGradientColor1, overlayGradientOpacity1, overlayGradientColor2, overlayGradientOpacity2, overlayGradientAngle, loadGallery]);
+  }, [canvasWidth, canvasHeight, drawFinalImage, elements, backgroundType, gradientColor1, gradientColor2, gradientAngle, backgroundColor, backgroundImage, backgroundImageScale, backgroundImageX, backgroundImageY, overlayType, overlayColor, overlayOpacity, overlayGradientColor1, overlayGradientOpacity1, overlayGradientColor2, overlayGradientOpacity2, overlayGradientAngle, isAdmin, currentUser]);
 
   const handleLogin = async () => {
     if (isAdmin) {
@@ -2054,6 +2169,8 @@ export default function ImageGeneratorPage() {
                   onSettingChange={handleAdminSettingsChange}
                   onSave={saveAdminSettings}
                   isSaving={isSavingAdminSettings}
+                  hasUnsavedChanges={hasUnsavedChanges}
+                  showSavedMessage={showSavedMessage}
                 />
               </div>
             </>

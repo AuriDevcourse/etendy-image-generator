@@ -135,70 +135,11 @@ export default function Step3Text({
               placeholder="Your text here"
               className="glass-input bg-white/5 border-white/20 text-white placeholder-white/50 min-h-[80px]" />
 
-            {/* Alignment & Spacing */}
-            <div className="space-y-3 pt-2">
-              <Label className="text-white/80 text-sm font-medium">Alignment & Spacing</Label>
-              <div className="grid grid-cols-2 gap-4">
-                  <div>
-                      <Tabs value={selectedText.textAlign || 'left'} onValueChange={(val) => wrappedUpdate({ textAlign: val })} className="w-full">
-                          <TabsList className="grid w-full grid-cols-3 bg-white/5 border border-white/20 h-auto p-1">
-                              <TabsTrigger value="left" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/70 p-2 h-full"><AlignLeft className="w-5 h-5" /></TabsTrigger>
-                              <TabsTrigger value="center" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/70 p-2 h-full"><AlignCenter className="w-5 h-5" /></TabsTrigger>
-                              <TabsTrigger value="right" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/70 p-2 h-full"><AlignRight className="w-5 h-5" /></TabsTrigger>
-                          </TabsList>
-                      </Tabs>
-                  </div>
-                  <div className="space-y-2">
-                      <div className="flex justify-between items-center">
-                          <Label className="text-white/80 text-xs font-medium">Line Height</Label>
-                          <EditableBadge
-                            value={(selectedText.lineHeight ?? 1.2).toFixed(1)}
-                            onValueChange={(val) => wrappedUpdate({ lineHeight: parseFloat(val) })}
-                            suffix="x"
-                            min={0.5}
-                            max={3}
-                            step={0.1} />
-
-                      </div>
-                      <Slider
-                        value={[selectedText.lineHeight ?? 1.2]}
-                        onValueChange={([val]) => wrappedUpdate({ lineHeight: val })}
-                        min={0.5}
-                        max={3}
-                        step={0.1}
-                        className="flex-1 glass-slider" />
-
-                  </div>
-              </div>
-            </div>
-
-            {/* Rotation */}
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <Label className="text-white/80 text-sm font-medium">Rotation</Label>
-                <EditableBadge
-                  value={Math.round(selectedText.rotation || 0)}
-                  onValueChange={(val) => wrappedUpdate({ rotation: snapAngle(val) })}
-                  suffix="°"
-                  min={-360}
-                  max={360}
-                />
-              </div>
-              <Slider
-                value={[selectedText.rotation || 0]}
-                onValueChange={([val]) => wrappedUpdate({ rotation: snapAngle(val) })}
-                min={-180}
-                max={180}
-                step={1}
-                className="glass-slider"
-              />
-            </div>
-
             {/* Font Settings */}
             {showFontControls && (
               <div className="space-y-3 pt-2">
                 <Label className="text-white/80 text-sm font-medium">Font Settings</Label>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4">
                     {fontSettings.enabled !== false && (
                     <Popover>
                         <PopoverTrigger asChild>
@@ -224,93 +165,112 @@ export default function Step3Text({
                         </PopoverContent>
                     </Popover>
                     )}
-                    {/* Size controls */}
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center">
-                          <Label className="text-white/80 text-sm font-medium">Size</Label>
-                          <EditableBadge
-                          value={selectedText.size}
-                          onValueChange={(val) => wrappedUpdate({ size: val })}
-                          suffix="px"
-                          max={500}
-                          min={10}
-                          step={1} />
-                      </div>
-                      <Slider
-                      value={[selectedText.size]}
-                      onValueChange={([val]) => wrappedUpdate({ size: val })}
-                      min={10}
-                      max={500}
-                      step={1}
-                      className="flex-1 glass-slider" />
-                    </div>
+                </div>
+                {/* Font Weight and Style directly under font selection */}
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Font Weight Dropdown */}
+                  <div>
+                    <Select value={selectedText.weight?.toString() || '600'} onValueChange={(value) => { pushToHistory(); updateElement(selectedText.id, { weight: value }); }}>
+                      <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                        <SelectValue placeholder="Weight" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-black/80 border-white/20 text-white">
+                        {FONT_WEIGHTS[selectedText.font]?.map((weight) => (
+                            <SelectItem key={weight} value={weight}>{weight}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Font Style Dropdown */}
+                  <div>
+                    <Select 
+                      value={`${selectedText.style || 'normal'}-${selectedText.transform || 'none'}`} 
+                      onValueChange={(value) => { 
+                        const [style, transform] = value.split('-');
+                        pushToHistory(); 
+                        updateElement(selectedText.id, { style, transform }); 
+                      }}
+                    >
+                      <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                        <SelectValue placeholder="Style" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-black/80 border-white/20 text-white">
+                        <SelectItem value="normal-none">Normal</SelectItem>
+                        <SelectItem value="italic-none">Italic</SelectItem>
+                        <SelectItem value="normal-capitalize">Capitalize</SelectItem>
+                        <SelectItem value="normal-uppercase">UPPERCASE</SelectItem>
+                        <SelectItem value="italic-capitalize">Italic Capitalize</SelectItem>
+                        <SelectItem value="italic-uppercase">ITALIC UPPERCASE</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </div>
             )}
-            
-            {/* Font Weight and Style */}
-            {showFontControls && (
-                <div className="space-y-3 pt-2">
-                    <Label className="text-white/80 text-sm font-medium">Font Weight & Style</Label>
-                    <div className="grid grid-cols-2 gap-4">
-                      {/* Font Weight Dropdown */}
-                      <div>
-                        <Label className="text-white/80 text-sm font-medium mb-2 block">Weight</Label>
-                        <Select value={selectedText.weight?.toString() || '600'} onValueChange={(value) => { pushToHistory(); updateElement(selectedText.id, { weight: value }); }}>
-                          <SelectTrigger className="bg-white/10 border-white/20 text-white">
-                            <SelectValue placeholder="Weight" />
-                          </SelectTrigger>
-                          <SelectContent className="bg-black/80 border-white/20 text-white">
-                            {FONT_WEIGHTS[selectedText.font]?.map((weight) => (
-                                <SelectItem key={weight} value={weight}>{weight}</SelectItem>
-                            ))}
-                            {/* Original static weights, kept for reference or if dynamic weights are not desired
-                            <SelectItem value="100">Thin</SelectItem>
-                            <SelectItem value="200">Extra Light</SelectItem>
-                            <SelectItem value="300">Light</SelectItem>
-                            <SelectItem value="400">Regular</SelectItem>
-                            <SelectItem value="500">Medium</SelectItem>
-                            <SelectItem value="600">Semi Bold</SelectItem>
-                            <SelectItem value="700">Bold</SelectItem>
-                            <SelectItem value="800">Extra Bold</SelectItem>
-                            <SelectItem value="900">Black</SelectItem>
-                            */}
-                          </SelectContent>
-                        </Select>
-                      </div>
 
-                      {/* Font Style Dropdown */}
-                      <div>
-                        <Label className="text-white/80 text-sm font-medium mb-2 block">Style</Label>
-                        <Select value={selectedText.style || 'normal'} onValueChange={(value) => { pushToHistory(); updateElement(selectedText.id, { style: value }); }}>
-                          <SelectTrigger className="bg-white/10 border-white/20 text-white">
-                            <SelectValue placeholder="Style" />
-                          </SelectTrigger>
-                          <SelectContent className="bg-black/80 border-white/20 text-white">
-                            <SelectItem value="normal">Normal</SelectItem>
-                            <SelectItem value="italic">Italic</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Text Transform */}
-            {/* Removed showFontControls condition as per outline for better alignment */}
+            {/* Size and Line Height */}
             <div className="space-y-3 pt-2">
-              <Label className="text-white/80 text-sm font-medium mb-2 block">Text Transform</Label>
-              <Select value={selectedText.transform || 'none'} onValueChange={(value) => { pushToHistory(); updateElement(selectedText.id, { transform: value }); }}>
-                <SelectTrigger className="bg-white/10 border-white/20 text-white">
-                  <SelectValue placeholder="Transform" />
-                </SelectTrigger>
-                <SelectContent className="bg-black/80 border-white/20 text-white">
-                  <SelectItem value="none">None</SelectItem>
-                  <SelectItem value="capitalize">Capitalize</SelectItem>
-                  <SelectItem value="uppercase">UPPERCASE</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="grid grid-cols-2 gap-4">
+                  {/* Size controls */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                        <Label className="text-white/80 text-sm font-medium">Size</Label>
+                        <EditableBadge
+                        value={selectedText.size}
+                        onValueChange={(val) => wrappedUpdate({ size: val })}
+                        suffix="px"
+                        max={500}
+                        min={10}
+                        step={1} />
+                    </div>
+                    <Slider
+                    value={[selectedText.size]}
+                    onValueChange={([val]) => wrappedUpdate({ size: val })}
+                    min={10}
+                    max={500}
+                    step={1}
+                    className="flex-1 glass-slider" />
+                  </div>
+                  {/* Line Height controls */}
+                  <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                          <Label className="text-white/80 text-sm font-medium">Line Height</Label>
+                          <EditableBadge
+                            value={(selectedText.lineHeight ?? 1.2).toFixed(1)}
+                            onValueChange={(val) => wrappedUpdate({ lineHeight: parseFloat(val) })}
+                            suffix="x"
+                            min={0.5}
+                            max={3}
+                            step={0.1} />
+                      </div>
+                      <Slider
+                        value={[selectedText.lineHeight ?? 1.2]}
+                        onValueChange={([val]) => wrappedUpdate({ lineHeight: val })}
+                        min={0.5}
+                        max={3}
+                        step={0.1}
+                        className="flex-1 glass-slider" />
+                  </div>
+              </div>
             </div>
+
+            {/* Alignment & Spacing */}
+            <div className="space-y-3 pt-2">
+              <Label className="text-white/80 text-sm font-medium">Alignment & Spacing</Label>
+              <div className="grid grid-cols-1 gap-4">
+                  <div>
+                      <Tabs value={selectedText.textAlign || 'left'} onValueChange={(val) => wrappedUpdate({ textAlign: val })} className="w-full">
+                          <TabsList className="grid w-full grid-cols-3 bg-white/5 border border-white/20 h-auto p-1">
+                              <TabsTrigger value="left" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/70 p-2 h-full"><AlignLeft className="w-5 h-5" /></TabsTrigger>
+                              <TabsTrigger value="center" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/70 p-2 h-full"><AlignCenter className="w-5 h-5" /></TabsTrigger>
+                              <TabsTrigger value="right" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/70 p-2 h-full"><AlignRight className="w-5 h-5" /></TabsTrigger>
+                          </TabsList>
+                      </Tabs>
+                  </div>
+              </div>
+            </div>
+
             
             {/* Color controls */}
             <div className="space-y-3 pt-2">
@@ -331,46 +291,74 @@ export default function Step3Text({
               }
             </div>
 
-            {/* Opacity controls */}
-            <div className="space-y-2 pt-2">
-              <div className="flex justify-between items-center">
-                <Label className="text-white/80 text-sm font-medium">Opacity</Label>
-                <EditableBadge
-                value={Math.round((selectedText.opacity ?? 1) * 100)}
-                onValueChange={(val) => wrappedUpdate({ opacity: val / 100 })}
-                suffix="%"
-                max={100}
-                min={0}
-                step={1} />
-              </div>
-              <Slider
-              value={[selectedText.opacity ?? 1]}
-              onValueChange={([val]) => wrappedUpdate({ opacity: val })}
-              min={0}
-              max={1}
-              step={0.01}
-              className="flex-1 glass-slider" />
-            </div>
+            {/* Rotation, Opacity & Blur */}
+            <div className="space-y-3 pt-2">
+              <Label className="text-white/80 text-sm font-medium">Effects</Label>
+              <div className="grid grid-cols-3 gap-4">
+                  {/* Rotation */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <Label className="text-white/80 text-xs font-medium">Rotation</Label>
+                      <EditableBadge
+                        value={Math.round(selectedText.rotation || 0)}
+                        onValueChange={(val) => wrappedUpdate({ rotation: snapAngle(val) })}
+                        suffix="°"
+                        min={-360}
+                        max={360}
+                      />
+                    </div>
+                    <Slider
+                      value={[selectedText.rotation || 0]}
+                      onValueChange={([val]) => wrappedUpdate({ rotation: snapAngle(val) })}
+                      min={-180}
+                      max={180}
+                      step={1}
+                      className="glass-slider"
+                    />
+                  </div>
 
-            {/* Blur controls */}
-            <div className="space-y-2 pt-2">
-              <div className="flex justify-between items-center">
-                <Label className="text-white/80 text-sm font-medium">Blur</Label>
-                <EditableBadge
-                value={selectedText.blur || 0}
-                onValueChange={(val) => wrappedUpdate({ blur: val })}
-                suffix="px"
-                max={20}
-                min={0}
-                step={0.5} />
+                  {/* Opacity */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <Label className="text-white/80 text-xs font-medium">Opacity</Label>
+                      <EditableBadge
+                      value={Math.round((selectedText.opacity ?? 1) * 100)}
+                      onValueChange={(val) => wrappedUpdate({ opacity: val / 100 })}
+                      suffix="%"
+                      max={100}
+                      min={0}
+                      step={1} />
+                    </div>
+                    <Slider
+                    value={[selectedText.opacity ?? 1]}
+                    onValueChange={([val]) => wrappedUpdate({ opacity: val })}
+                    min={0}
+                    max={1}
+                    step={0.01}
+                    className="flex-1 glass-slider" />
+                  </div>
+
+                  {/* Blur */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <Label className="text-white/80 text-xs font-medium">Blur</Label>
+                      <EditableBadge
+                      value={selectedText.blur || 0}
+                      onValueChange={(val) => wrappedUpdate({ blur: val })}
+                      suffix="px"
+                      max={20}
+                      min={0}
+                      step={0.5} />
+                    </div>
+                    <Slider
+                    value={[selectedText.blur || 0]}
+                    onValueChange={([val]) => wrappedUpdate({ blur: val })}
+                    min={0}
+                    max={20}
+                    step={0.5}
+                    className="flex-1 glass-slider" />
+                  </div>
               </div>
-              <Slider
-              value={[selectedText.blur || 0]}
-              onValueChange={([val]) => wrappedUpdate({ blur: val })}
-              min={0}
-              max={20}
-              step={0.5}
-              className="flex-1 glass-slider" />
             </div>
           </div>
         )}

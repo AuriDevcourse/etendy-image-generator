@@ -34,7 +34,13 @@ export default function TemplatesPanel({
     <>
       <div className="space-y-4">
         <div className="flex justify-between items-center">
-          <h3 className="text-lg font-semibold text-white/90">Templates</h3>
+          <div>
+            <h3 className="text-lg font-semibold text-white/90">Templates</h3>
+            <p className="text-xs text-white/50">Maximum 4 templates</p>
+          </div>
+          <div className="text-sm text-white/60">
+            {templates?.length || 0}/4
+          </div>
         </div>
 
         {isLoading ? (

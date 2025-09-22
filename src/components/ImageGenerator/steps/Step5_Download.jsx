@@ -51,7 +51,9 @@ export default function Step5Download({ onDownload, isDownloading, onSave, isSav
                 <Button
                   onClick={() => {
                     const name = prompt('Enter a template name:');
-                    if (name && name.trim()) onSaveTemplate(name.trim());
+                    if (name && name.trim()) {
+                      onSaveTemplate(name.trim());
+                    }
                   }}
                   disabled={isSavingTemplate}
                   variant="outline"
@@ -60,6 +62,7 @@ export default function Step5Download({ onDownload, isDownloading, onSave, isSav
                   {isSavingTemplate ? 'Saving...' : 'Save as Template'}
                 </Button>
               )}
+              
             </div>
           )}
         </div>

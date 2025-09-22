@@ -25,10 +25,7 @@ const LockedBackgroundSettings = ({ settings, onSettingChange, section }) => {
 
   const handleLockedChange = (key, value) => {
     console.log('🎨 CANVAS BACKGROUND ADMIN CHANGE:', { section, key, value });
-    onSettingChange(section, 'lockedSettings', {
-      ...(settings[section]?.lockedSettings || {}),
-      [key]: value
-    });
+    onSettingChange(section, key, value);
   };
 
   const handleFileProcess = (file) => {
@@ -52,11 +49,7 @@ const LockedBackgroundSettings = ({ settings, onSettingChange, section }) => {
   return (
     <div className="mt-6 p-6 bg-white/5 rounded-lg border border-white/10 space-y-6">
       <h4 className="text-sm font-semibold text-white/80">Locked Canvas Background Settings</h4>
-      <div className="text-xs text-white/50">Debug: Current type = {lockedSettings.backgroundType || 'undefined'}</div>
-      
-      {/* STYLED BUTTONS - Matching the nice look from the working tabs */}
       <div className="w-full relative">
-        <div className="text-xs text-yellow-400 mb-2">🎨 STYLED BUTTONS - Canvas Background:</div>
         <div className="grid w-full grid-cols-3 bg-white/10 border border-white/20 h-auto p-1 rounded-lg">
           <button
             onClick={(e) => {
@@ -115,36 +108,21 @@ const LockedBackgroundSettings = ({ settings, onSettingChange, section }) => {
             Image
           </button>
         </div>
-        <div className="text-xs text-yellow-400 mt-2">⚡ Canvas background buttons with working click handlers!</div>
-      </div>
-
-      {/* Debug: Show what we're checking */}
-      <div className="text-xs text-white/40">
-        Checking: '{lockedSettings.backgroundType}' === 'color' = {String(lockedSettings.backgroundType === 'color')}
-      </div>
-      <div className="text-xs text-white/40">
-        Checking: '{lockedSettings.backgroundType}' === 'gradient' = {String(lockedSettings.backgroundType === 'gradient')}
-      </div>
-      <div className="text-xs text-white/40">
-        Checking: '{lockedSettings.backgroundType}' === 'image' = {String(lockedSettings.backgroundType === 'image')}
       </div>
 
       {lockedSettings.backgroundType === 'color' &&
         <div className="pt-2">
-          <div className="text-xs text-green-400 mb-2">✅ Showing COLOR picker</div>
           <ColorPicker color={lockedSettings.backgroundColor} onChange={(color) => handleLockedChange('backgroundColor', color)} />
         </div>
       }
       {lockedSettings.backgroundType === 'gradient' &&
         <div className="grid grid-cols-2 gap-4 pt-2">
-          <div className="col-span-2 text-xs text-green-400 mb-2">✅ Showing GRADIENT pickers</div>
           <ColorPicker color={lockedSettings.gradientColor1} onChange={(color) => handleLockedChange('gradientColor1', color)} />
           <ColorPicker color={lockedSettings.gradientColor2} onChange={(color) => handleLockedChange('gradientColor2', color)} />
         </div>
       }
       {lockedSettings.backgroundType === 'image' &&
         <div className="space-y-4 pt-2">
-          <div className="text-xs text-green-400 mb-2">✅ Showing IMAGE upload</div>
           <FileUploadArea
             onFileSelect={handleFileProcess}
             uploadedImage={lockedSettings.backgroundImage}
@@ -186,10 +164,7 @@ const LockedPageBackgroundSettings = ({ settings, onSettingChange, section }) =>
 
   const handleLockedChange = (key, value) => {
     console.log('🎨 PAGE BACKGROUND ADMIN CHANGE:', { section, key, value });
-    onSettingChange(section, 'lockedSettings', {
-      ...(settings[section]?.lockedSettings || {}),
-      [key]: value
-    });
+    onSettingChange(section, key, value);
   };
 
   const handleFileProcess = (file) => {
@@ -212,11 +187,8 @@ const LockedPageBackgroundSettings = ({ settings, onSettingChange, section }) =>
 
   return (
     <div className="mt-6 p-6 bg-white/5 rounded-lg border border-white/10 space-y-6">
-      <h4 className="text-xs font-semibold text-white/80">Locked Page Background Settings</h4>
-      <div className="text-xs text-white/50">Debug: Current type = {lockedSettings.pageBackgroundType || 'undefined'}</div>
-      {/* STYLED BUTTONS - Matching the nice look from the working tabs */}
+      <h4 className="text-sm font-semibold text-white/80">Locked Page Background Settings</h4>
       <div className="w-full relative">
-        <div className="text-xs text-yellow-400 mb-2">🎨 STYLED BUTTONS - Nice looking and clickable:</div>
         <div className="grid w-full grid-cols-3 bg-white/10 border border-white/20 h-auto p-1 rounded-lg">
           <button
             onClick={(e) => {
@@ -311,29 +283,15 @@ const LockedPageBackgroundSettings = ({ settings, onSettingChange, section }) =>
             Image
           </button>
         </div>
-        <div className="text-xs text-yellow-400 mt-2">⚡ These buttons look nice AND have working click handlers!</div>
-      </div>
-
-      {/* Debug: Show what we're checking */}
-      <div className="text-xs text-white/40">
-        Checking: '{lockedSettings.pageBackgroundType}' === 'color' = {String(lockedSettings.pageBackgroundType === 'color')}
-      </div>
-      <div className="text-xs text-white/40">
-        Checking: '{lockedSettings.pageBackgroundType}' === 'gradient' = {String(lockedSettings.pageBackgroundType === 'gradient')}
-      </div>
-      <div className="text-xs text-white/40">
-        Checking: '{lockedSettings.pageBackgroundType}' === 'image' = {String(lockedSettings.pageBackgroundType === 'image')}
       </div>
 
       {lockedSettings.pageBackgroundType === 'color' &&
         <div className="pt-2">
-          <div className="text-xs text-green-400 mb-2">✅ Showing COLOR picker</div>
           <ColorPicker color={lockedSettings.pageBackgroundColor} onChange={(color) => handleLockedChange('pageBackgroundColor', color)} />
         </div>
       }
       {lockedSettings.pageBackgroundType === 'gradient' &&
         <div className="grid grid-cols-2 gap-4 pt-2">
-          <div className="col-span-2 text-xs text-green-400 mb-2">✅ Showing GRADIENT pickers</div>
           <ColorPicker color={lockedSettings.pageGradientColor1} onChange={(color) => handleLockedChange('pageGradientColor1', color)} />
           <ColorPicker color={lockedSettings.pageGradientColor2} onChange={(color) => handleLockedChange('pageGradientColor2', color)} />
         </div>
@@ -376,7 +334,7 @@ const LockedPageBackgroundSettings = ({ settings, onSettingChange, section }) =>
 };
 
 
-export default function AdminPanel({ settings, onSettingChange, onSave, isSaving }) {
+export default function AdminPanel({ settings, onSettingChange, onSave, isSaving, hasUnsavedChanges, showSavedMessage }) {
   const handleNestedChange = (section, key, value) => {
     onSettingChange({
       ...settings,
@@ -641,31 +599,31 @@ export default function AdminPanel({ settings, onSettingChange, onSave, isSaving
             <AccordionContent className="px-6 pb-6 space-y-4">
               <div className="grid grid-cols-2 gap-x-8 gap-y-4">
                 <div className="flex items-center justify-between">
-                  <Label className="text-white/80 text-sm">Layers Panel</Label>
+                  <Label className="text-white/80 text-sm">Layers</Label>
                   <Switch
                     checked={settings.generalControls?.layersEnabled !== false}
                     onCheckedChange={(checked) => handleNestedChange('generalControls', 'layersEnabled', checked)} />
                 </div>
                 <div className="flex items-center justify-between">
-                  <Label className="text-white/80 text-sm">Templates Panel</Label>
+                  <Label className="text-white/80 text-sm">Templates</Label>
                   <Switch
                     checked={settings.generalControls?.templatesEnabled !== false}
                     onCheckedChange={(checked) => handleNestedChange('generalControls', 'templatesEnabled', checked)} />
                 </div>
                 <div className="flex items-center justify-between">
-                  <Label className="text-white/80 text-sm">Gallery Panel</Label>
+                  <Label className="text-white/80 text-sm">Gallery</Label>
                   <Switch
                     checked={settings.generalControls?.galleryEnabled !== false}
                     onCheckedChange={(checked) => handleNestedChange('generalControls', 'galleryEnabled', checked)} />
                 </div>
                 <div className="flex items-center justify-between">
-                  <Label className="text-white/80 text-sm">Undo Button</Label>
+                  <Label className="text-white/80 text-sm">Undo</Label>
                   <Switch
                     checked={settings.generalControls?.undoEnabled !== false}
                     onCheckedChange={(checked) => handleNestedChange('generalControls', 'undoEnabled', checked)} />
                 </div>
                 <div className="flex items-center justify-between">
-                  <Label className="text-white/80 text-sm">Reset Button</Label>
+                  <Label className="text-white/80 text-sm">Reset</Label>
                   <Switch
                     checked={settings.generalControls?.resetEnabled !== false}
                     onCheckedChange={(checked) => handleNestedChange('generalControls', 'resetEnabled', checked)} />
@@ -677,10 +635,28 @@ export default function AdminPanel({ settings, onSettingChange, onSave, isSaving
 
         <div className="pt-4">
           <Button
-            onClick={onSave}
+            onClick={(e) => {
+              console.log('🎯 ADMIN PANEL: Save Settings button clicked!');
+              console.log('🔍 onSave function:', onSave);
+              console.log('🔍 isSaving state:', isSaving);
+              e.preventDefault();
+              e.stopPropagation();
+              if (onSave) {
+                console.log('✅ Calling onSave function...');
+                onSave();
+              } else {
+                console.error('❌ onSave function is not defined!');
+              }
+            }}
             disabled={isSaving}
-            className="w-full bg-indigo-500 hover:bg-indigo-600 text-white py-3">
-            {isSaving ? 'Saving...' : 'Save Settings'}
+            className={`w-full py-3 text-white transition-all ${
+              showSavedMessage
+                ? 'bg-green-500 hover:bg-green-600'
+                : hasUnsavedChanges 
+                ? 'bg-orange-500 hover:bg-orange-600 animate-pulse' 
+                : 'bg-indigo-500 hover:bg-indigo-600'
+            }`}>
+            {showSavedMessage ? 'Saved!' : isSaving ? 'Saving...' : hasUnsavedChanges ? 'Save Changes *' : 'Save Settings'}
           </Button>
         </div>
       </div>

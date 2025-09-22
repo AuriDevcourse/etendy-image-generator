@@ -214,29 +214,37 @@ export default function Step4Elements({
               }
             </div>
 
-            <div className="space-y-2 pt-2">
-              <div className="flex justify-between items-center">
-                <Label className="text-white/80 text-sm font-medium">Opacity</Label>
-                <EditableBadge value={Math.round((selectedElement.opacity ?? 1) * 100)} onValueChange={(val) => wrappedUpdate({ opacity: val / 100 })} suffix="%" max={100} />
-              </div>
-              <Slider value={[selectedElement.opacity ?? 1]} onValueChange={([val]) => wrappedUpdate({ opacity: val })} min={0} max={1} step={0.01} className="glass-slider" />
-            </div>
-            
-            <div className="space-y-2 pt-2">
-              <div className="flex justify-between items-center">
-                <Label className="text-white/80 text-sm font-medium">Blur</Label>
-                <EditableBadge value={selectedElement.blur || 0} onValueChange={(val) => wrappedUpdate({ blur: val })} suffix="px" max={20} />
-              </div>
-              <Slider value={[selectedElement.blur || 0]} onValueChange={([val]) => wrappedUpdate({ blur: val })} min={0} max={20} step={0.5} className="glass-slider" />
-            </div>
+            {/* Effects - Opacity, Blur & Rotation in one row */}
+            <div className="space-y-3 pt-2">
+              <Label className="text-white/80 text-sm font-medium">Effects</Label>
+              <div className="grid grid-cols-3 gap-4">
+                {/* Opacity */}
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <Label className="text-white/80 text-xs font-medium">Opacity</Label>
+                    <EditableBadge value={Math.round((selectedElement.opacity ?? 1) * 100)} onValueChange={(val) => wrappedUpdate({ opacity: val / 100 })} suffix="%" max={100} />
+                  </div>
+                  <Slider value={[selectedElement.opacity ?? 1]} onValueChange={([val]) => wrappedUpdate({ opacity: val })} min={0} max={1} step={0.01} className="glass-slider" />
+                </div>
 
-            {/* Rotation for shapes and logos */}
-            <div className="space-y-2 pt-2">
-              <div className="flex justify-between items-center">
-                <Label className="text-white/80 text-sm font-medium">Rotation</Label>
-                <EditableBadge value={Math.round(selectedElement.rotation || 0)} onValueChange={(val) => wrappedUpdate({ rotation: snapAngle(val) })} suffix="°" min={-360} max={360} />
+                {/* Blur */}
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <Label className="text-white/80 text-xs font-medium">Blur</Label>
+                    <EditableBadge value={selectedElement.blur || 0} onValueChange={(val) => wrappedUpdate({ blur: val })} suffix="px" max={20} />
+                  </div>
+                  <Slider value={[selectedElement.blur || 0]} onValueChange={([val]) => wrappedUpdate({ blur: val })} min={0} max={20} step={0.5} className="glass-slider" />
+                </div>
+
+                {/* Rotation */}
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <Label className="text-white/80 text-xs font-medium">Rotation</Label>
+                    <EditableBadge value={Math.round(selectedElement.rotation || 0)} onValueChange={(val) => wrappedUpdate({ rotation: snapAngle(val) })} suffix="°" min={-360} max={360} />
+                  </div>
+                  <Slider value={[selectedElement.rotation || 0]} onValueChange={([val]) => wrappedUpdate({ rotation: snapAngle(val) })} min={-180} max={180} step={1} className="glass-slider" />
+                </div>
               </div>
-              <Slider value={[selectedElement.rotation || 0]} onValueChange={([val]) => wrappedUpdate({ rotation: snapAngle(val) })} min={-180} max={180} step={1} className="glass-slider" />
             </div>
 
             {selectedElement.shapeType === 'rectangle' && (() => {

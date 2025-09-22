@@ -38,6 +38,7 @@ export default function CanvasPreview({
   // const [templateName, setTemplateName] = useState(''); // Removed, as template save UI is removed
   const [snapLines, setSnapLines] = useState({ horizontal: false, vertical: false });
   const [showCanvasSizePanel, setShowCanvasSizePanel] = useState(false); // New state for popover visibility
+  const [showBottomCanvasSizePanel, setShowBottomCanvasSizePanel] = useState(false); // State for bottom popover
 
   // Local state for custom input fields to avoid conflicts with global state
   const [customWidth, setCustomWidth] = useState(canvasWidth);
@@ -1066,7 +1067,7 @@ export default function CanvasPreview({
       if (width !== canvasWidth || height !== canvasHeight) {
         onCanvasSizeChange({ width, height });
       }
-      setShowCanvasSizePanel(false);
+      setShowBottomCanvasSizePanel(false);
     }
   }, [customWidth, customHeight, onCanvasSizeChange, canvasWidth, canvasHeight]);
 
@@ -1079,13 +1080,13 @@ export default function CanvasPreview({
       setCustomWidth(newWidth.toString());
       setCustomHeight(newHeight.toString());
       onCanvasSizeChange({ width: newWidth, height: newHeight });
-      setShowCanvasSizePanel(false);
+      setShowBottomCanvasSizePanel(false);
     } else if (mode === '1:1') {
       const newSize = 1500;
       setCustomWidth(newSize.toString());
       setCustomHeight(newSize.toString());
       onCanvasSizeChange({ width: newSize, height: newSize });
-      setShowCanvasSizePanel(false);
+      setShowBottomCanvasSizePanel(false);
     }
     // For custom mode, don't auto-apply - let user input values and click apply
   }, [onCanvasSizeChange]);
@@ -1109,93 +1110,6 @@ export default function CanvasPreview({
     <div className="w-full">
       <style>{`.is-dragging-on-canvas * { cursor: grabbing !important; }`}</style>
       
-      {/* Top Controls (Canvas Size Popover only remains from previous toolbar) */}
-      <div className="flex justify-end items-center mb-4 px-16">
-        {(!adminSettings?.canvasControls?.lockCanvasSize) && (
-          <Popover open={showCanvasSizePanel} onOpenChange={setShowCanvasSizePanel}>
-            <PopoverTrigger asChild>
-              <Button 
-                size="icon" 
-                className="bg-white/10 border-white/20 hover:opacity-80 text-white w-11 h-11 transition-opacity duration-200" 
-                title="Canvas Size"
-              >
-                <Expand className="w-5 h-5" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent 
-              className="w-64 glass-panel border border-white/20 backdrop-blur-xl bg-black/50 p-4"
-              align="end"
-            >
-              <div className="space-y-4">
-                <Label className="text-white/80 font-semibold">Canvas Size</Label>
-                <div className="flex gap-2">
-                  <Button
-                    variant={canvasSizeMode === '16:9' ? 'default' : 'outline'}
-                    onClick={() => handleCanvasSizePreset('16:9')}
-                    className="flex-1 text-xs h-8"
-                  >
-                    16:9
-                  </Button>
-                  <Button
-                    variant={canvasSizeMode === '1:1' ? 'default' : 'outline'}
-                    onClick={() => handleCanvasSizePreset('1:1')}
-                    className="flex-1 text-xs h-8"
-                  >
-                    1:1
-                  </Button>
-                  <Button
-                    variant={canvasSizeMode === 'custom' ? 'default' : 'outline'}
-                    onClick={() => handleCanvasSizePreset('custom')}
-                    className="flex-1 text-xs h-8"
-                  >
-                    Custom
-                  </Button>
-                </div>
-                
-                {canvasSizeMode === 'custom' && (
-                  <div className="space-y-3">
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <Label className="text-white/70 text-xs">Width</Label>
-                        <Input
-                          type="number"
-                          placeholder="Width"
-                          value={customWidth}
-                          onChange={(e) => handleCustomSizeChange('width', e.target.value)}
-                          onKeyDown={handleCustomSizeKeyDown}
-                          className="bg-white/10 border-white/20 text-white text-xs h-8 mt-1"
-                          min="100"
-                          max="5000"
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-white/70 text-xs">Height</Label>
-                        <Input
-                          type="number"
-                          placeholder="Height"
-                          value={customHeight}
-                          onChange={(e) => handleCustomSizeChange('height', e.target.value)}
-                          onKeyDown={handleCustomSizeKeyDown}
-                          className="bg-white/10 border-white/20 text-white text-xs h-8 mt-1"
-                          min="100"
-                          max="5000"
-                        />
-                      </div>
-                    </div>
-                    <Button
-                      onClick={applyCustomSize}
-                      className="w-full bg-indigo-500 hover:bg-indigo-600 text-white text-xs h-8"
-                      disabled={!customWidth || !customHeight || parseInt(customWidth, 10) < 100 || parseInt(customHeight, 10) < 100}
-                    >
-                      Apply Size
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </PopoverContent>
-          </Popover>
-        )}
-      </div>
 
       {/* Canvas Container */}
       <div className="mx-16 relative rounded-xl overflow-hidden border border-white/20 bg-black/20" style={{ aspectRatio: `${canvasWidth}/${canvasHeight}` }}>
@@ -1275,10 +1189,105 @@ export default function CanvasPreview({
               <Heart className="w-4 h-4 mr-2" /> {isSaving ? "Saving..." : "Save to Gallery"}
             </Button>
           )}
+          {onSaveTemplate && (
+            <Button 
+              onClick={() => {
+                const name = prompt('Enter a template name:');
+                if (name && name.trim()) {
+                  onSaveTemplate(name.trim());
+                }
+              }} 
+              disabled={isSavingTemplate} 
+              variant="ghost" 
+              size="sm" 
+              className="text-white/70 hover:bg-white/10 hover:text-white"
+            >
+              <Save className="w-4 h-4 mr-2" /> {isSavingTemplate ? "Saving..." : "Save to Template"}
+            </Button>
+          )}
           {onDownload && (
-            <Button onClick={() => onDownload('png')} disabled={isDownloading} className="bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg">
+            <Button onClick={() => onDownload('png')} disabled={isDownloading} variant="ghost" size="sm" className="text-white/70 hover:bg-white/10 hover:text-white">
               <Download className="w-4 h-4 mr-2" /> {isDownloading ? "Downloading..." : "Download"}
             </Button>
+          )}
+          {(!adminSettings?.canvasControls?.lockCanvasSize) && (
+            <Popover open={showBottomCanvasSizePanel} onOpenChange={setShowBottomCanvasSizePanel}>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="sm" className="text-white/70 hover:bg-white/10 hover:text-white">
+                  <Expand className="w-4 h-4 mr-2" /> Canvas Size
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent 
+                className="w-64 glass-panel border border-white/20 backdrop-blur-xl bg-black/50 p-4"
+                align="end"
+              >
+                <div className="space-y-4">
+                  <Label className="text-white/80 font-semibold">Canvas Size</Label>
+                  <div className="flex gap-2">
+                    <Button
+                      variant={canvasSizeMode === '16:9' ? 'default' : 'outline'}
+                      onClick={() => handleCanvasSizePreset('16:9')}
+                      className="flex-1 text-xs h-8"
+                    >
+                      16:9
+                    </Button>
+                    <Button
+                      variant={canvasSizeMode === '1:1' ? 'default' : 'outline'}
+                      onClick={() => handleCanvasSizePreset('1:1')}
+                      className="flex-1 text-xs h-8"
+                    >
+                      1:1
+                    </Button>
+                    <Button
+                      variant={canvasSizeMode === 'custom' ? 'default' : 'outline'}
+                      onClick={() => handleCanvasSizePreset('custom')}
+                      className="flex-1 text-xs h-8"
+                    >
+                      Custom
+                    </Button>
+                  </div>
+                  
+                  {canvasSizeMode === 'custom' && (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <Label className="text-white/70 text-xs">Width</Label>
+                          <Input
+                            type="number"
+                            placeholder="Width"
+                            value={customWidth}
+                            onChange={(e) => handleCustomSizeChange('width', e.target.value)}
+                            onKeyDown={handleCustomSizeKeyDown}
+                            className="bg-white/10 border-white/20 text-white text-xs h-8 mt-1"
+                            min="100"
+                            max="5000"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-white/70 text-xs">Height</Label>
+                          <Input
+                            type="number"
+                            placeholder="Height"
+                            value={customHeight}
+                            onChange={(e) => handleCustomSizeChange('height', e.target.value)}
+                            onKeyDown={handleCustomSizeKeyDown}
+                            className="bg-white/10 border-white/20 text-white text-xs h-8 mt-1"
+                            min="100"
+                            max="5000"
+                          />
+                        </div>
+                      </div>
+                      <Button
+                        onClick={applyCustomSize}
+                        className="w-full h-8 text-xs"
+                      >
+                        Apply Size
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
           )}
         </div>
       </div>
