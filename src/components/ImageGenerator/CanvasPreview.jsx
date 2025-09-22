@@ -35,6 +35,7 @@ export default function CanvasPreview({
   const [canvasSizeMode, setCanvasSizeMode] = useState('custom'); // Changed default to 'custom'
   const [imageCache] = useState(new Map());
   const [shiftPressed, setShiftPressed] = useState(false);
+  const [altPressed, setAltPressed] = useState(false);
   // const [templateName, setTemplateName] = useState(''); // Removed, as template save UI is removed
   const [snapLines, setSnapLines] = useState({ horizontal: false, vertical: false });
   const [showCanvasSizePanel, setShowCanvasSizePanel] = useState(false); // New state for popover visibility
@@ -44,13 +45,15 @@ export default function CanvasPreview({
   const [customWidth, setCustomWidth] = useState(canvasWidth);
   const [customHeight, setCustomHeight] = useState(canvasHeight);
 
-  // Track shift key for proportional scaling
+  // Track shift and alt keys for scaling
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Shift') setShiftPressed(true);
+      if (e.key === 'Alt') setAltPressed(true);
     };
     const handleKeyUp = (e) => {
-      if (e.key === 'Shift') setShiftPressed(false); // Changed to false on keyup
+      if (e.key === 'Shift') setShiftPressed(false);
+      if (e.key === 'Alt') setAltPressed(false);
     };
     
     window.addEventListener('keydown', handleKeyDown);
@@ -1020,18 +1023,40 @@ export default function CanvasPreview({
                     updatedProps = { width: newWidth, x: newRectX, y: newRectY };
                 }
             } else { // rectangle or star
-                updatedProps = { 
-                    width: newWidth, 
-                    height: newHeight, 
-                    x: newRectX, 
-                    y: newRectY 
-                };
+                if (altPressed && element.shapeType === 'rectangle') {
+                    // Alt key: scale from center (both directions)
+                    const centerX = startRect.x + startRect.width / 2;
+                    const centerY = startRect.y + startRect.height / 2;
+                    
+                    // Calculate scale factor based on mouse movement
+                    const dx = mousePos.x - startMouse.x;
+                    const dy = mousePos.y - startMouse.y;
+                    const avgDelta = (Math.abs(dx) + Math.abs(dy)) / 2;
+                    const scaleFactor = 1 + (avgDelta / Math.max(startRect.width, startRect.height));
+                    
+                    const newW = Math.max(10, startRect.width * scaleFactor);
+                    const newH = Math.max(10, startRect.height * scaleFactor);
+                    
+                    updatedProps = {
+                        width: newW,
+                        height: newH,
+                        x: centerX - newW / 2,
+                        y: centerY - newH / 2
+                    };
+                } else {
+                    updatedProps = { 
+                        width: newWidth, 
+                        height: newHeight, 
+                        x: newRectX, 
+                        y: newRectY 
+                    };
+                }
             }
         }
         updateElement(elementId, updatedProps);
         setSnapLines({ horizontal: false, vertical: false }); // Resize doesn't have center snapping guidelines
     }
-  }, [interactionState, getMousePosOnCanvas, elements, updateElement, getElementRect, getHandles, shiftPressed, isPointInOutline, canvasWidth, canvasHeight, setSnapLines, selectedElementId]);
+  }, [interactionState, getMousePosOnCanvas, elements, updateElement, getElementRect, getHandles, shiftPressed, altPressed, isPointInOutline, canvasWidth, canvasHeight, setSnapLines, selectedElementId]);
 
   const handleMouseUp = useCallback(() => {
     setInteractionState({ type: 'none' });

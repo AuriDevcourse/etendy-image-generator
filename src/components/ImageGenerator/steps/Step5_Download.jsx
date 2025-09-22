@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
-import { Download } from "lucide-react";
+import { Download, Save } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 
-export default function Step5Download({ onDownload, isDownloading, onSave, isSaving, onSaveTemplate, isSavingTemplate }) {
+export default function Step5Download({ onDownload, isDownloading, onSave, isSaving, onSaveTemplate, isSavingTemplate, onSavePreset, isSavingPreset, isEditMode, presetName }) {
   const [downloadFormat, setDownloadFormat] = useState('jpg');
 
   const handleDownload = () => {
@@ -33,6 +33,18 @@ export default function Step5Download({ onDownload, isDownloading, onSave, isSav
             <Download className="w-4 h-4 mr-2" />
             {isDownloading ? 'Generating...' : 'Download as JPG'}
           </Button>
+
+          {/* Save Preset Button (Edit Mode Only) */}
+          {isEditMode && onSavePreset && (
+            <Button 
+              onClick={onSavePreset} 
+              disabled={isSavingPreset} 
+              className="w-full bg-gradient-to-r from-blue-500/30 to-indigo-500/30 border border-white/20 backdrop-blur-xl text-white hover:from-blue-500/40 hover:to-indigo-500/40 hover:border-white/30 transition-all duration-300 shadow-lg shadow-blue-500/25 py-3 text-sm font-semibold"
+            >
+              <Save className="w-4 h-4 mr-2" />
+              {isSavingPreset ? 'Saving...' : `Update "${presetName}" Preset`}
+            </Button>
+          )}
 
           {(onSave || onSaveTemplate) && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">

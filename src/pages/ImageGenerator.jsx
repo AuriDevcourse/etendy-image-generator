@@ -1,12 +1,12 @@
-
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { UploadFile } from "@/api/integrations";
 import { GeneratedImage } from "@/api/entities";
 import { Template } from "@/api/entities";
 import { User } from "@/api/entities"; // Assuming User entity exists for role checking
 import { AdminSettings } from '@/api/entities'; // Import AdminSettings
+import { presetService, authService } from '../lib/supabase';
 
-import CanvasPreview from "../components/ImageGenerator/CanvasPreview";
+import CanvasPreview from '../components/ImageGenerator/CanvasPreview';
 import Step1Background from '../components/ImageGenerator/steps/Step1_Background';
 import Step2Image from '../components/ImageGenerator/steps/Step2_Image';
 import Step3Text from '../components/ImageGenerator/steps/Step3_Text';
@@ -18,7 +18,7 @@ import ColorPicker from '../components/ImageGenerator/ColorPicker';
 import Gallery from '../components/ImageGenerator/Gallery';
 import AdminPanel from '../components/ImageGenerator/AdminPanel'; // Import AdminPanel
 import { Button } from '@/components/ui/button';
-import { Palette, X, CheckCircle, ChevronLeft, ChevronRight, Heart, Layers, Save, Settings, Image as ImageIcon, Type, Shapes, Download, Monitor, User as UserIcon } from 'lucide-react';
+import { Palette, X, CheckCircle, ChevronLeft, ChevronRight, Heart, Layers, Save, Settings, Image as ImageIcon, Type, Shapes, Download, Monitor, User as UserIcon, LogOut } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 const DEFAULT_ADMIN_SETTINGS = {
@@ -173,6 +173,15 @@ export default function ImageGeneratorPage() {
   const [showSaveError, setShowSaveError] = useState(false);
   const [saveErrorMessage, setSaveErrorMessage] = useState('');
   const [isLoadingGallery, setIsLoadingGallery] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Preset State
+  const [currentPreset, setCurrentPreset] = useState(null);
+  const [isLoadingPreset, setIsLoadingPreset] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [isSavingPreset, setIsSavingPreset] = useState(false);
+  const [adminUser, setAdminUser] = useState(null);
+  const [isCheckingAdmin, setIsCheckingAdmin] = useState(false);
 
   // Template State
   const [templates, setTemplates] = useState([]);
@@ -272,6 +281,43 @@ export default function ImageGeneratorPage() {
   }, [setShowTemplatesPanel, setShowLayersPanel, setShowGalleryPanel]);
 
   // --- Core Functions (moved up for initialization order) ---
+  const pushToHistory = useCallback(() => {
+    const currentState = {
+      elements,
+      backgroundType,
+      gradientColor1,
+      gradientColor2,
+      gradientAngle,
+      backgroundColor,
+      backgroundImage,
+      backgroundImageScale,
+      backgroundImageX,
+      backgroundImageY,
+      overlayType,
+      overlayColor,
+      overlayOpacity,
+      overlayGradientColor1,
+      overlayGradientOpacity1,
+      overlayGradientColor2,
+      overlayGradientOpacity2,
+      overlayGradientAngle,
+      canvasWidth,
+      canvasHeight
+    };
+    
+    // Save current design to localStorage for admin preset creation
+    try {
+      localStorage.setItem('etendy_current_design', JSON.stringify(currentState));
+    } catch (error) {
+      console.error('Failed to save current design to localStorage:', error);
+    }
+    
+    setHistory(prev => {
+      const newHistory = [currentState, ...prev.slice(0, MAX_HISTORY_LENGTH - 1)];
+      return newHistory;
+    });
+  }, [elements, backgroundType, gradientColor1, gradientColor2, gradientAngle, backgroundColor, backgroundImage, backgroundImageScale, backgroundImageX, backgroundImageY, overlayType, overlayColor, overlayOpacity, overlayGradientColor1, overlayGradientOpacity1, overlayGradientColor2, overlayGradientOpacity2, overlayGradientAngle, canvasWidth, canvasHeight]);
+
   const gatherStateSnapshot = useCallback(() => {
     return {
       elements: JSON.parse(JSON.stringify(elements)), // Deep copy of elements
@@ -289,21 +335,6 @@ export default function ImageGeneratorPage() {
       overlayType, overlayColor, overlayOpacity, overlayGradientColor1, overlayGradientOpacity1, 
       overlayGradientColor2, overlayGradientOpacity2, overlayGradientAngle,
   ]);
-  
-  const pushToHistory = useCallback(() => {
-    const snapshot = gatherStateSnapshot();
-    setHistory(prev => {
-        // Prevent adding duplicate state if the last action didn't change anything
-        if (prev.length > 0 && JSON.stringify(prev[prev.length - 1]) === JSON.stringify(snapshot)) {
-            return prev;
-        }
-        const newHistory = [...prev, snapshot];
-        if (newHistory.length > MAX_HISTORY_LENGTH) {
-            return newHistory.slice(newHistory.length - MAX_HISTORY_LENGTH);
-        }
-        return newHistory;
-    });
-  }, [gatherStateSnapshot]);
 
   const handleCanvasSizeChange = useCallback(({ width, height }) => {
     console.log('handleCanvasSizeChange called with:', { width, height }); // Debug log
@@ -988,10 +1019,241 @@ export default function ImageGeneratorPage() {
     loadTemplates();
   }, [loadGallery, loadTemplates]);
 
+  // Load preset from URL on page load
+  useEffect(() => {
+    const loadPresetFromUrl = async () => {
+      // Check URL for preset ID: /p/ABC123 or ?preset=ABC123
+      const urlPath = window.location.pathname;
+      const urlParams = new URLSearchParams(window.location.search);
+      
+      console.log('🔍 Checking for preset in URL:', urlPath);
+      
+      // Check if we're in edit mode
+      const editMode = urlParams.get('edit') === 'true';
+      setIsEditMode(editMode);
+      
+      let presetId = null;
+      if (urlPath.startsWith('/p/')) {
+        presetId = urlPath.split('/p/')[1];
+        console.log('🎨 Found preset ID in path:', presetId);
+      } else if (urlParams.get('preset')) {
+        presetId = urlParams.get('preset');
+        console.log('🎨 Found preset ID in query:', presetId);
+      }
+
+      if (presetId) {
+        setIsLoadingPreset(true);
+        try {
+          console.log('🎨 Loading preset:', presetId);
+          const preset = await presetService.getPreset(presetId);
+          
+          if (preset && preset.settings) {
+            console.log('✅ Preset loaded:', preset.name);
+            console.log('📋 Preset settings:', preset.settings);
+            
+            // Apply preset settings
+            const settings = preset.settings;
+            
+            // Background settings
+            if (settings.backgroundType) setBackgroundType(settings.backgroundType);
+            if (settings.backgroundColor) setBackgroundColor(settings.backgroundColor);
+            if (settings.gradientColor1) setGradientColor1(settings.gradientColor1);
+            if (settings.gradientColor2) setGradientColor2(settings.gradientColor2);
+            if (settings.gradientAngle) setGradientAngle(settings.gradientAngle);
+            if (settings.backgroundImage) setBackgroundImage(settings.backgroundImage);
+            if (settings.backgroundImageScale) setBackgroundImageScale(settings.backgroundImageScale);
+            if (settings.backgroundImageX) setBackgroundImageX(settings.backgroundImageX);
+            if (settings.backgroundImageY) setBackgroundImageY(settings.backgroundImageY);
+            if (settings.backgroundImageNaturalDimensions) setBackgroundImageNaturalDimensions(settings.backgroundImageNaturalDimensions);
+            
+            // Overlay settings
+            if (settings.overlayType) setOverlayType(settings.overlayType);
+            if (settings.overlayColor) setOverlayColor(settings.overlayColor);
+            if (settings.overlayOpacity !== undefined) setOverlayOpacity(settings.overlayOpacity);
+            if (settings.overlayGradientColor1) setOverlayGradientColor1(settings.overlayGradientColor1);
+            if (settings.overlayGradientOpacity1 !== undefined) setOverlayGradientOpacity1(settings.overlayGradientOpacity1);
+            if (settings.overlayGradientColor2) setOverlayGradientColor2(settings.overlayGradientColor2);
+            if (settings.overlayGradientOpacity2 !== undefined) setOverlayGradientOpacity2(settings.overlayGradientOpacity2);
+            if (settings.overlayGradientAngle) setOverlayGradientAngle(settings.overlayGradientAngle);
+            
+            // Canvas size
+            if (settings.canvasWidth) setCanvasWidth(settings.canvasWidth);
+            if (settings.canvasHeight) setCanvasHeight(settings.canvasHeight);
+            
+            // Page background settings
+            if (settings.pageBackgroundType) setPageBackgroundType(settings.pageBackgroundType);
+            if (settings.pageGradientColor1) setPageGradientColor1(settings.pageGradientColor1);
+            if (settings.pageGradientColor2) setPageGradientColor2(settings.pageGradientColor2);
+            if (settings.pageBackgroundColor) setPageBackgroundColor(settings.pageBackgroundColor);
+            if (settings.pageBackgroundImage) setPageBackgroundImage(settings.pageBackgroundImage);
+            if (settings.pageBackgroundScale) setPageBackgroundScale(settings.pageBackgroundScale);
+            if (settings.pageBackgroundX) setPageBackgroundX(settings.pageBackgroundX);
+            if (settings.pageBackgroundY) setPageBackgroundY(settings.pageBackgroundY);
+            
+            // Elements (text, images, shapes, etc.)
+            if (settings.elements && Array.isArray(settings.elements)) {
+              console.log('🎨 Loading elements:', settings.elements);
+              setElements(settings.elements);
+            }
+            
+            // UI state
+            if (settings.showCanvasBackgroundOverlay !== undefined) {
+              setShowCanvasBackgroundOverlay(settings.showCanvasBackgroundOverlay);
+            } else {
+              setShowCanvasBackgroundOverlay(false); // Hide overlay since preset is loaded
+            }
+            
+            setCurrentPreset({ id: presetId, name: preset.name });
+          }
+        } catch (error) {
+          console.error('❌ Failed to load preset:', error);
+        } finally {
+          setIsLoadingPreset(false);
+        }
+      }
+    };
+
+    loadPresetFromUrl();
+  }, []); // Run once on mount
+
+  // Check for admin authentication on page load
+  useEffect(() => {
+    const checkAdminAuth = async () => {
+      setIsCheckingAdmin(true);
+      try {
+        const user = await authService.getCurrentUser();
+        if (user && user.email) {
+          const isAdminUser = await presetService.isAdmin(user.email);
+          if (isAdminUser) {
+            setAdminUser(user);
+            setIsAdmin(true);
+            console.log('✅ Admin user authenticated:', user.email);
+          }
+        }
+      } catch (error) {
+        console.error('❌ Admin auth check failed:', error);
+      } finally {
+        setIsCheckingAdmin(false);
+      }
+    };
+
+    checkAdminAuth();
+  }, []);
+
+  // Admin login function
+  const handleAdminLogin = async () => {
+    try {
+      await authService.signInWithGoogle();
+    } catch (error) {
+      console.error('❌ Admin login failed:', error);
+      alert('Failed to login. Please try again.');
+    }
+  };
+
+  // Admin logout function
+  const handleAdminLogout = async () => {
+    try {
+      await authService.signOut();
+      setAdminUser(null);
+      setIsAdmin(false);
+      setShowAdminPanel(false);
+      alert('Logged out successfully!');
+    } catch (error) {
+      console.error('❌ Admin logout failed:', error);
+    }
+  };
+
+  // Save current design as preset (for edit mode)
+  const saveCurrentPreset = useCallback(async () => {
+    if (!currentPreset || !isEditMode) return;
+    
+    setIsSavingPreset(true);
+    try {
+      // Capture complete current state
+      const currentSettings = {
+        // Background settings
+        backgroundType,
+        gradientColor1,
+        gradientColor2,
+        gradientAngle,
+        backgroundColor,
+        backgroundImage,
+        backgroundImageScale,
+        backgroundImageX,
+        backgroundImageY,
+        backgroundImageNaturalDimensions,
+        
+        // Overlay settings
+        overlayType,
+        overlayColor,
+        overlayOpacity,
+        overlayGradientColor1,
+        overlayGradientOpacity1,
+        overlayGradientColor2,
+        overlayGradientOpacity2,
+        overlayGradientAngle,
+        
+        // Canvas settings
+        canvasWidth,
+        canvasHeight,
+        
+        // Page background settings
+        pageBackgroundType,
+        pageGradientColor1,
+        pageGradientColor2,
+        pageBackgroundColor,
+        pageBackgroundImage,
+        pageBackgroundScale,
+        pageBackgroundX,
+        pageBackgroundY,
+        
+        // All elements (text, images, shapes, etc.)
+        elements: JSON.parse(JSON.stringify(elements)), // Deep copy
+        
+        // UI state
+        showCanvasBackgroundOverlay,
+        
+        // Timestamp for tracking
+        lastUpdated: new Date().toISOString(),
+        
+        // Version for future compatibility
+        version: '1.0'
+      };
+
+      console.log('💾 Saving complete preset state:', currentSettings);
+
+      // Update the existing preset
+      await presetService.updatePreset(currentPreset.id, currentSettings);
+      
+      alert(`Preset "${currentPreset.name}" updated successfully!`);
+    } catch (error) {
+      console.error('Failed to save preset:', error);
+      alert('Failed to save preset. Please try again.');
+    } finally {
+      setIsSavingPreset(false);
+    }
+  }, [
+    currentPreset, isEditMode, 
+    // Background state
+    backgroundType, gradientColor1, gradientColor2, gradientAngle, backgroundColor, 
+    backgroundImage, backgroundImageScale, backgroundImageX, backgroundImageY, backgroundImageNaturalDimensions,
+    // Overlay state
+    overlayType, overlayColor, overlayOpacity, overlayGradientColor1, overlayGradientOpacity1, 
+    overlayGradientColor2, overlayGradientOpacity2, overlayGradientAngle,
+    // Canvas state
+    canvasWidth, canvasHeight,
+    // Page background state
+    pageBackgroundType, pageGradientColor1, pageGradientColor2, pageBackgroundColor,
+    pageBackgroundImage, pageBackgroundScale, pageBackgroundX, pageBackgroundY,
+    // Elements
+    elements,
+    // UI state
+    showCanvasBackgroundOverlay
+  ]);
+
   const handlePhotoUpload = useCallback((fileData) => {
     pushToHistory();
-    // Remove existing main photo if any
-    const newElements = elements.filter(el => el.type !== 'image');
+    // Add new image without removing existing ones (support multiple images)
     if (fileData) {
         const newImage = {
             id: fileData.id || crypto.randomUUID(),
@@ -1013,12 +1275,9 @@ export default function ImageGeneratorPage() {
             blur: 0,
             rotation: 0,
         };
-        setElements([...newElements, newImage]);
+        setElements([...elements, newImage]); // Keep existing elements, add new image
         setSelectedElementId(newImage.id);
         setIsCropping(false); // Ensure cropping is turned off when new image is uploaded
-    } else {
-        setElements(newElements);
-        setIsCropping(false); // Also turn off cropping when image is removed
     }
   }, [canvasWidth, canvasHeight, pushToHistory, elements]);
 
@@ -2140,17 +2399,40 @@ export default function ImageGeneratorPage() {
         .font-archivo-expanded { font-family: 'Archivo Expanded', system-ui, sans-serif; }
       `}</style>
 
-      {/* Admin Panel Toggle - Only show for admins */}
-      {isAdmin && (
-        <div className="fixed top-4 left-4 z-[200]">
+      {/* Admin Panel Toggle - Show for admins or login button for non-admins */}
+      <div className="fixed top-4 left-4 z-[200]">
+        {adminUser ? (
+          <div className="flex gap-2">
+            <Button 
+              onClick={(e) => { e.stopPropagation(); toggleAdminPanel(); }}
+              className="w-12 h-12 bg-red-500/20 border border-red-500/30 rounded-xl backdrop-blur-xl flex items-center justify-center hover:bg-red-500/30 transition-all duration-300 text-red-300"
+              title="Admin Settings"
+            >
+              <Settings className="w-6 h-6" />
+            </Button>
+            <Button 
+              onClick={(e) => { e.stopPropagation(); handleAdminLogout(); }}
+              className="w-12 h-12 bg-gray-500/20 border border-gray-500/30 rounded-xl backdrop-blur-xl flex items-center justify-center hover:bg-gray-500/30 transition-all duration-300 text-gray-300"
+              title={`Logout ${adminUser.email}`}
+            >
+              <LogOut className="w-6 h-6" />
+            </Button>
+          </div>
+        ) : (
           <Button 
-            onClick={(e) => { e.stopPropagation(); toggleAdminPanel(); }}
-            className="w-12 h-12 bg-red-500/20 border border-red-500/30 rounded-xl backdrop-blur-xl flex items-center justify-center hover:bg-red-500/30 transition-all duration-300 text-red-300"
+            onClick={(e) => { e.stopPropagation(); handleAdminLogin(); }}
+            disabled={isCheckingAdmin}
+            className="px-4 py-2 bg-blue-500/20 border border-blue-500/30 rounded-xl backdrop-blur-xl flex items-center gap-2 hover:bg-blue-500/30 transition-all duration-300 text-blue-300"
+            title="Admin Login"
           >
-            <Settings className="w-6 h-6" />
+            <UserIcon className="w-5 h-5" />
+            {isCheckingAdmin ? 'Checking...' : 'Admin Login'}
           </Button>
+        )}
+      </div>
 
-          {showAdminPanel && (
+      {/* Admin Panel */}
+      {adminUser && showAdminPanel && (
             <>
               {/* Backdrop specifically for Admin Panel */}
               <div 
@@ -2174,8 +2456,6 @@ export default function ImageGeneratorPage() {
                 />
               </div>
             </>
-          )}
-        </div>
       )}
 
       {/* Control Icons - Fixed in corner */}
@@ -2296,38 +2576,6 @@ export default function ImageGeneratorPage() {
               </>
             )}
           </div>
-        )}
-        
-        {/* User Menu */}
-        {currentUser ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button className="w-12 h-12 bg-white/20 border border-white/30 rounded-xl backdrop-blur-xl flex items-center justify-center hover:bg-white/30 transition-all duration-300 text-white relative shadow-lg">
-                <UserIcon className="w-6 h-6" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="glass-panel border-white/20 bg-black/50 text-white mr-4">
-              <DropdownMenuLabel className="font-normal">
-                <p className="text-sm font-medium leading-none">Signed in as</p>
-                <p className="text-xs leading-none text-white/70">{currentUser.email}</p>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator className="bg-white/20" />
-              <DropdownMenuItem 
-                onClick={handleSaveCurrentAsMyPreset} 
-                disabled={isSavingTemplate}
-                className="cursor-pointer"
-              >
-                {isSavingTemplate ? "Saving..." : "Save as My Preset"}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
-                Logout
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ) : (
-          <Button onClick={handleLogin} className={`h-12 px-4 text-white rounded-xl shadow-lg ${isAdmin ? 'bg-red-500 hover:bg-red-600' : 'bg-indigo-500 hover:bg-indigo-600'}`}>
-            {isAdmin ? 'Admin Logout' : 'Admin Login'}
-          </Button>
         )}
       </div>
 
@@ -2479,15 +2727,19 @@ export default function ImageGeneratorPage() {
 
                 {activeControlPanel === 'image' && (!adminSettings || adminSettings.imageControls?.uploadEnabled !== false) && (
                   <Step2Image 
-                    photo={elements.find(el => el.type === 'image')}
+                    photo={selectedElementId ? elements.find(el => el.id === selectedElementId && el.type === 'image') : null}
+                    images={elements.filter(el => el.type === 'image')}
                     onPhotoUpload={handlePhotoUpload}
                     updateElement={updateElement}
                     pushToHistory={pushToHistory}
                     canvasWidth={canvasWidth}
                     canvasHeight={canvasHeight}
+                    isLoading={isLoading}
                     adminSettings={adminSettings}
                     isCropping={isCropping}
                     setIsCropping={setIsCropping}
+                    selectedElementId={selectedElementId}
+                    setSelectedElementId={setSelectedElementId}
                   />
                 )}
 
@@ -2533,6 +2785,10 @@ export default function ImageGeneratorPage() {
                     isSaving={isSaving} 
                     onSaveTemplate={handleSaveTemplate}
                     isSavingTemplate={isSavingTemplate}
+                    onSavePreset={saveCurrentPreset}
+                    isSavingPreset={isSavingPreset}
+                    isEditMode={isEditMode}
+                    presetName={currentPreset?.name}
                   />
                 )}
               </div>

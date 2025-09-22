@@ -102,8 +102,8 @@ export default function Step3Text({
   };
 
   return (
-    <Card className="glass-panel border border-white/20 backdrop-blur-xl bg-white/10 p-6">
-      <div className="space-y-6"> {/* Replaced Accordion with a div */}
+    <Card className="glass-panel border border-white/20 backdrop-blur-xl bg-white/10 p-6" style={{ maxHeight: '1100px', overflowY: 'auto' }}>
+      <div className="space-y-6 pr-2 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent"> {/* Replaced Accordion with a div */}
         <h3 className="text-lg font-semibold text-white/90 flex items-center gap-2">
           <Type className="w-5 h-5" /> {/* Changed icon from Text to Type */}
           Text
@@ -112,17 +112,19 @@ export default function Step3Text({
         <Button onClick={addNewText} className="w-full glass-input bg-white/10 hover:bg-white/20">Add New Text Field</Button>
 
         {textElements.length > 0 && (
-          <div className="border-t border-white/10 pt-6 space-y-2">
+          <div className="border-t border-white/10 pt-6">
               <h4 className="text-md font-semibold text-white/90 mb-4">Text Layers</h4>
-              {textElements.map(textEl => (
-                  <div 
-                      key={textEl.id} 
-                      className={`p-3 rounded-lg transition-all duration-200 cursor-pointer ${selectedElement?.id === textEl.id ? 'bg-white/10 ring-2 ring-indigo-400' : 'bg-white/5 hover:bg-white/10'}`}
-                      onClick={() => setSelectedElementId(textEl.id)}
-                  >
-                      <p className="text-white truncate">{textEl.content}</p>
-                  </div>
-              ))}
+              <div className="space-y-2">
+                {textElements.map(textEl => (
+                    <div 
+                        key={textEl.id} 
+                        className={`p-3 rounded-lg transition-all duration-200 cursor-pointer ${selectedElement?.id === textEl.id ? 'bg-white/10 ring-2 ring-indigo-400' : 'bg-white/5 hover:bg-white/10'}`}
+                        onClick={() => setSelectedElementId(textEl.id)}
+                    >
+                        <p className="text-white truncate">{textEl.content}</p>
+                    </div>
+                ))}
+              </div>
           </div>
         )}
   

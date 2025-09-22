@@ -160,17 +160,21 @@ const InlineCropInterface = ({ photo, cropValues, onCropChange, onCropEnd }) => 
 
 
 export default function Step2Image({
-  photo,
-  onPhotoUpload,
-  updateElement,
-  pushToHistory,
-  canvasWidth,
-  canvasHeight,
+  photo, 
+  images = [],
+  onPhotoUpload, 
+  updateElement, 
+  pushToHistory, 
+  canvasWidth, 
+  canvasHeight, 
+  isLoading, 
   adminSettings,
   isCropping,
-  setIsCropping
+  setIsCropping,
+  selectedElementId,
+  setSelectedElementId
 }) {
-  const [isLoading, setIsLoading] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [cropValues, setCropValues] = useState({ x: 0, y: 0, width: 100, height: 100 });
 
   const imgControls = adminSettings?.imageControls || {};
@@ -182,7 +186,7 @@ export default function Step2Image({
       return;
     }
 
-    setIsLoading(true);
+    setIsUploading(true);
     const reader = new FileReader();
     reader.onload = (event) => {
       const img = new Image();
@@ -205,16 +209,16 @@ export default function Step2Image({
         });
         setIsCropping(false);
         setCropValues({ x: 0, y: 0, width: 100, height: 100 });
-        setIsLoading(false);
+        setIsUploading(false);
       };
       img.onerror = () => {
-        setIsLoading(false);
+        setIsUploading(false);
         alert("Failed to load image.");
       };
       img.src = event.target.result;
     };
     reader.onerror = () => {
-      setIsLoading(false);
+      setIsUploading(false);
       alert("Failed to read file.");
     };
     reader.readAsDataURL(file);
@@ -293,7 +297,7 @@ export default function Step2Image({
       <div className="space-y-6">
         <h3 className="text-lg font-semibold text-white/90 mb-4 flex items-center gap-2">
           <ImageIcon className="w-5 h-5" />
-          Main Image
+          Image
         </h3>
 
         {imgControls?.uploadEnabled !== false ? (
@@ -302,17 +306,47 @@ export default function Step2Image({
               onFileSelect={processFile}
               uploadedImage={photo?.src}
               onRemoveImage={removePhoto}
-              disabled={isLoading}
+              disabled={isUploading}
             >
               <div className="flex flex-col items-center space-y-2">
                 <Upload className="w-6 h-6 text-white/70" />
-                <p className="text-white/80 font-medium">Upload Main Image</p>
+                <p className="text-white/80 font-medium">Upload Image</p>
                 <p className="text-white/60 text-xs">Drop image here or click</p>
               </div>
             </FileUploadArea>
           </div>
         ) : (
           <p className="text-center text-white/60 text-sm">Image uploads are disabled.</p>
+        )}
+
+        {/* Image List */}
+        {images.length > 0 && (
+          <div className="border-t border-white/10 pt-6">
+            <h4 className="text-md font-semibold text-white/90 mb-4">Images ({images.length})</h4>
+            <div className="space-y-2 max-h-60 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
+              {images.map(image => (
+                <div 
+                  key={image.id} 
+                  className={`p-3 rounded-lg transition-all duration-200 cursor-pointer flex items-center gap-3 ${selectedElementId === image.id ? 'bg-white/10 ring-2 ring-indigo-400' : 'bg-white/5 hover:bg-white/10'}`}
+                  onClick={() => setSelectedElementId(image.id)}
+                >
+                  <div className="w-12 h-12 rounded-lg overflow-hidden bg-white/10 flex-shrink-0">
+                    <img 
+                      src={image.src} 
+                      alt="Image thumbnail" 
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white text-sm truncate">Image {images.indexOf(image) + 1}</p>
+                    <p className="text-white/60 text-xs">
+                      {image.naturalWidth} × {image.naturalHeight}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
 
       {photo && (

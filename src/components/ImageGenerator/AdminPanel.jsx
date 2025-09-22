@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Type, Brush, Image as ImageIcon, Shapes, Grid, Palette, Upload, Settings, Download, RotateCw, Expand } from 'lucide-react';
+import { Type, Brush, Image as ImageIcon, Shapes, Grid, Palette, Upload, Settings, Download, RotateCw, Expand, Database } from 'lucide-react';
 import ColorPicker from './ColorPicker';
 import { FileUploadArea } from './FileUploadArea';
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -633,7 +632,20 @@ export default function AdminPanel({ settings, onSettingChange, onSave, isSaving
           </AccordionItem>
         </Accordion>
 
-        <div className="pt-4">
+        <div className="pt-4 space-y-3">
+          {/* Preset Management Button */}
+          <Button
+            onClick={() => {
+              // Open the old admin dashboard in a new tab for preset management
+              window.open('/admin', '_blank');
+            }}
+            className="w-full py-3 text-white bg-purple-500 hover:bg-purple-600 transition-all flex items-center justify-center gap-2"
+          >
+            <Database className="w-4 h-4" />
+            Manage Presets
+          </Button>
+
+          {/* Save Settings Button */}
           <Button
             onClick={(e) => {
               console.log('🎯 ADMIN PANEL: Save Settings button clicked!');

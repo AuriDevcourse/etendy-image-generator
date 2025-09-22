@@ -1,6 +1,8 @@
 import Layout from "./Layout.jsx";
 
 import ImageGenerator from "./ImageGenerator";
+import AdminPage from "./admin";
+import TestPage from "./test";
 
 import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
 
@@ -27,6 +29,19 @@ function _getCurrentPage(url) {
 function PagesContent() {
     const location = useLocation();
     const currentPage = _getCurrentPage(location.pathname);
+    
+    // Admin and test pages should not use the Layout wrapper
+    if (location.pathname === '/admin') {
+        return <AdminPage />;
+    }
+    if (location.pathname === '/test') {
+        return <TestPage />;
+    }
+    
+    // Handle preset routes /p/preset-id
+    if (location.pathname.startsWith('/p/')) {
+        return <ImageGenerator />;
+    }
     
     return (
         <Layout currentPageName={currentPage}>
