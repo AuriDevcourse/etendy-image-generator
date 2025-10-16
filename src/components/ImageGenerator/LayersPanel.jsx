@@ -12,7 +12,7 @@ const ElementIcon = ({ type }) => {
   }
 };
 
-export default function LayersPanel({ elements, selectedElementId, onSelectElement, onDeleteElement, onMoveLayer, onReorderLayers }) {
+export default function LayersPanel({ elements, selectedElementIds, onSelectElement, onDeleteElement, onMoveLayer, onReorderLayers }) {
   // Only show the panel if there are actually elements to display
   // Don't show "no elements" message unless user is actively working with elements
   const relevantElements = elements.filter(el => ['image', 'logo', 'text', 'shape'].includes(el.type));
@@ -33,7 +33,7 @@ export default function LayersPanel({ elements, selectedElementId, onSelectEleme
               key={element.id} 
               onClick={() => onSelectElement(element.id)}
               className={`flex items-center p-2 rounded-lg cursor-pointer transition-colors relative
-                ${selectedElementId === element.id ? 'bg-indigo-500/30' : 'bg-white/5 hover:bg-white/10'}
+                ${selectedElementIds && selectedElementIds.includes(element.id) ? 'bg-indigo-500/30' : 'bg-white/5 hover:bg-white/10'}
                 ${draggingId && draggingId !== element.id && dragOverId !== element.id ? 'opacity-40' : ''}
                 ${dragOverId === element.id && dragOverPos === 'top' ? 'before:absolute before:left-0 before:right-0 before:top-0 before:h-0.5 before:bg-indigo-400' : ''}
                 ${dragOverId === element.id && dragOverPos === 'bottom' ? 'after:absolute after:left-0 after:right-0 after:bottom-0 after:h-0.5 after:bg-indigo-400' : ''}

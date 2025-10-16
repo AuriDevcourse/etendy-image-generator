@@ -11,7 +11,6 @@ import { Upload, Layers, X, RotateCw, Image as ImageIcon, Lock, Palette } from "
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import ColorPicker from '../ColorPicker';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { FileUploadArea } from '../FileUploadArea';
 
 // Define EditableBadge component
 const EditableBadge = ({ value, onValueChange, suffix = '', min = -Infinity, max = Infinity, disabled }) => {
@@ -267,17 +266,25 @@ export default function Step1Background({
                  Background Image
                </AccordionTrigger>
                <AccordionContent className="pt-4 space-y-4">
-                 <FileUploadArea 
-                      onFileSelect={handleCanvasBackgroundFileSelect}
-                      uploadedImage={backgroundImage}
-                      onRemoveImage={() => { setBackgroundImage(null); if (onBackgroundChange) onBackgroundChange(); }}
-                    >
-                      <div className="flex flex-col items-center space-y-2">
-                        <Upload className="w-6 h-6 text-white/70" />
-                        <p className="text-white/80 font-medium">Upload Canvas Background</p>
-                        <p className="text-white/60 text-xs">Drop image here or click</p>
-                      </div>
-                    </FileUploadArea>
+                 <label 
+                   htmlFor="background-image-upload" 
+                   className="flex flex-col items-center space-y-2 p-6 border border-white/20 rounded-xl bg-white/5 cursor-pointer hover:bg-white/10 transition-colors duration-200"
+                 >
+                   <Upload className="w-6 h-6 text-white/70" />
+                   <p className="text-white/80 font-medium">Upload Canvas Background</p>
+                   <p className="text-white/60 text-xs">Click to select an image file</p>
+                   <input
+                     id="background-image-upload"
+                     type="file"
+                     accept="image/*"
+                     onChange={(e) => {
+                       const file = e.target.files?.[0];
+                       if (file) handleCanvasBackgroundFileSelect(file);
+                       e.target.value = ''; // Reset input
+                     }}
+                     className="hidden"
+                   />
+                 </label>
                  {backgroundImage && (
                     <div className="space-y-4">
                       <div>

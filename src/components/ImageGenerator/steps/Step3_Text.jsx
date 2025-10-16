@@ -34,7 +34,7 @@ export default function Step3Text({
   selectedElement,
   updateElement,
   addElement,
-  setSelectedElementId,
+  setSelectedElementIds,
   canvasWidth,
   canvasHeight,
   pushToHistory,
@@ -119,7 +119,7 @@ export default function Step3Text({
                     <div 
                         key={textEl.id} 
                         className={`p-3 rounded-lg transition-all duration-200 cursor-pointer ${selectedElement?.id === textEl.id ? 'bg-white/10 ring-2 ring-indigo-400' : 'bg-white/5 hover:bg-white/10'}`}
-                        onClick={() => setSelectedElementId(textEl.id)}
+                        onClick={() => setSelectedElementIds([textEl.id])}
                     >
                         <p className="text-white truncate">{textEl.content}</p>
                     </div>

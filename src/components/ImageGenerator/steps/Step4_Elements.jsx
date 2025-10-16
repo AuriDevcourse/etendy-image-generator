@@ -9,7 +9,6 @@ import { Upload, X, Shapes, Circle, Star, Square, Minus, Link2, Unlink } from "l
 import ColorPicker from '../ColorPicker';
 import { EditableBadge } from './EditableBadge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { FileUploadArea } from '../FileUploadArea';
 
 const ShapeIcon = ({ shapeType, ...props }) => {
   switch (shapeType) {
@@ -27,7 +26,7 @@ export default function Step4Elements({
   onLogoUpload,
   updateElement,
   addElement,
-  setSelectedElementId,
+  setSelectedElementIds,
   canvasWidth,
   canvasHeight,
   pushToHistory,
@@ -126,21 +125,6 @@ export default function Step4Elements({
         </h3>
 
         <div>
-          <Label className="text-white/80 text-sm font-medium mb-3 block">Logo</Label>
-          <FileUploadArea
-              onFileSelect={processFile}
-              uploadedImage={logoElement?.src}
-              onRemoveImage={() => onLogoUpload(null)}
-          >
-              <div className="flex flex-col items-center space-y-2">
-                  <Upload className="w-6 h-6 text-white/70" />
-                  <p className="text-white/80 font-medium">Upload Logo</p>
-                  <p className="text-white/60 text-xs">Optional</p>
-              </div>
-          </FileUploadArea>
-        </div>
-
-        <div>
           <Label className="text-white/80 text-sm font-medium mb-3 block">Add Shape</Label>
           <div className="grid grid-cols-4 gap-2">
             {shapeControls.rectangleEnabled && <Button variant="outline" className="h-12 bg-white/5 border-white/20 text-white" onClick={() => handleAddShape('rectangle')}><ShapeIcon shapeType="rectangle" /></Button>}
@@ -157,7 +141,7 @@ export default function Step4Elements({
                 <div 
                     key={shapeEl.id} 
                     className={`p-3 rounded-lg transition-all duration-200 cursor-pointer flex items-center gap-3 ${selectedElement?.id === shapeEl.id ? 'bg-white/10 ring-2 ring-indigo-400' : 'bg-white/5 hover:bg-white/10'}`}
-                    onClick={() => setSelectedElementId(shapeEl.id)}
+                    onClick={() => setSelectedElementIds([shapeEl.id])}
                 >
                    <ShapeIcon shapeType={shapeEl.shapeType} className="w-5 h-5 text-white/80"/>
                    <p className="text-white capitalize flex-1">{shapeEl.shapeType}</p>

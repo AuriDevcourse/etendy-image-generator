@@ -5,11 +5,36 @@ import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 
-export default function Step5Download({ onDownload, isDownloading, onSave, isSaving, onSaveTemplate, isSavingTemplate, onSavePreset, isSavingPreset, isEditMode, presetName }) {
+export default function Step5Download({ 
+  onDownload, 
+  isDownloading, 
+  onSave, 
+  isSaving, 
+  onSaveTemplate, 
+  isSavingTemplate, 
+  onSavePreset, 
+  isSavingPreset, 
+  isEditMode, 
+  presetName,
+  user = null, // Add user prop for tracking
+  onStatsUpdate = null // Add callback for stats updates
+}) {
   const [downloadFormat, setDownloadFormat] = useState('jpg');
 
-  const handleDownload = () => {
-    onDownload('jpg'); // Always download as JPG
+  const handleDownload = async () => {
+    // Call the original download function
+    await onDownload('jpg');
+    
+    // Track download if user is logged in
+    if (user && onStatsUpdate) {
+      try {
+        await onStatsUpdate('total_downloads', 1);
+        console.log('✅ Download tracked for user:', user.email);
+      } catch (error) {
+        console.error('❌ Failed to track download:', error);
+        // Don't block the download if tracking fails
+      }
+    }
   };
 
   return (

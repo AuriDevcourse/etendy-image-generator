@@ -9,7 +9,7 @@ import { Upload, X, Image as ImageIcon, Crop, Move } from "lucide-react";
 import ColorPicker from '../ColorPicker';
 import { EditableBadge } from './EditableBadge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { FileUploadArea } from '../FileUploadArea';
+import { storageService, authService } from '../../../lib/supabase';
 
 // Inline Crop Component
 const InlineCropInterface = ({ photo, cropValues, onCropChange, onCropEnd }) => {
@@ -171,15 +171,15 @@ export default function Step2Image({
   adminSettings,
   isCropping,
   setIsCropping,
-  selectedElementId,
-  setSelectedElementId
+  selectedElementIds,
+  setSelectedElementIds
 }) {
   const [isUploading, setIsUploading] = useState(false);
   const [cropValues, setCropValues] = useState({ x: 0, y: 0, width: 100, height: 100 });
 
   const imgControls = adminSettings?.imageControls || {};
 
-  const processFile = useCallback((file) => {
+  const processFile = useCallback(async (file) => {
     if (!file || !file.type.startsWith('image/')) return;
     if (file.size > 5 * 1024 * 1024) {
       alert("Image is too large. Please select a file under 5MB.");
@@ -187,14 +187,24 @@ export default function Step2Image({
     }
 
     setIsUploading(true);
-    const reader = new FileReader();
-    reader.onload = (event) => {
+    
+    // Upload to Supabase Storage
+    try {
+      const currentUser = await authService.getCurrentUser();
+      const userId = currentUser?.id || 'anonymous';
+      
+      console.log('📤 Uploading image to Supabase Storage...');
+      const uploadResult = await storageService.uploadImage(file, userId, 'uploads');
+      console.log('✅ Image uploaded successfully:', uploadResult.url);
+      
+      // Use the Supabase URL instead of data URL
       const img = new Image();
       img.onload = () => {
         const newPhotoId = `photo-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
         onPhotoUpload({
           id: newPhotoId,
-          src: event.target.result,
+          src: uploadResult.url, // Use Supabase URL
+          supabasePath: uploadResult.path, // Store path for deletion
           width: img.naturalWidth,
           height: img.naturalHeight,
           opacity: 1,
@@ -213,15 +223,50 @@ export default function Step2Image({
       };
       img.onerror = () => {
         setIsUploading(false);
-        alert("Failed to load image.");
+        alert("Failed to load image from Supabase.");
       };
-      img.src = event.target.result;
-    };
-    reader.onerror = () => {
-      setIsUploading(false);
-      alert("Failed to read file.");
-    };
-    reader.readAsDataURL(file);
+      img.src = uploadResult.url;
+    } catch (uploadError) {
+      console.error('❌ Failed to upload to Supabase:', uploadError);
+      // Fallback to local data URL if Supabase upload fails
+      console.log('⚠️ Falling back to local data URL');
+      
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const newPhotoId = `photo-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+          onPhotoUpload({
+            id: newPhotoId,
+            src: event.target.result,
+            width: img.naturalWidth,
+            height: img.naturalHeight,
+            opacity: 1,
+            blur: 0,
+            borderRadius: 0,
+            borderWidth: 0,
+            borderType: 'solid',
+            borderColor: '#ffffff',
+            borderGradient1: '#6366f1',
+            borderGradient2: '#8b5cf6',
+            crop: { x: 0, y: 0, width: img.naturalWidth, height: img.naturalHeight }
+          });
+          setIsCropping(false);
+          setCropValues({ x: 0, y: 0, width: 100, height: 100 });
+          setIsUploading(false);
+        };
+        img.onerror = () => {
+          setIsUploading(false);
+          alert("Failed to load image.");
+        };
+        img.src = event.target.result;
+      };
+      reader.onerror = () => {
+        setIsUploading(false);
+        alert("Failed to read file.");
+      };
+      reader.readAsDataURL(file);
+    }
   }, [onPhotoUpload, setIsCropping]);
 
   const removePhoto = () => {
@@ -302,18 +347,29 @@ export default function Step2Image({
 
         {imgControls?.uploadEnabled !== false ? (
           <div className="space-y-4">
-            <FileUploadArea 
-              onFileSelect={processFile}
-              uploadedImage={photo?.src}
-              onRemoveImage={removePhoto}
-              disabled={isUploading}
+            <label 
+              htmlFor="image-upload" 
+              className="flex flex-col items-center space-y-2 p-6 border border-white/20 rounded-xl bg-white/5 cursor-pointer hover:bg-white/10 transition-colors duration-200"
             >
-              <div className="flex flex-col items-center space-y-2">
-                <Upload className="w-6 h-6 text-white/70" />
-                <p className="text-white/80 font-medium">Upload Image</p>
-                <p className="text-white/60 text-xs">Drop image here or click</p>
-              </div>
-            </FileUploadArea>
+              <Upload className="w-6 h-6 text-white/70" />
+              <p className="text-white/80 font-medium">Upload Image</p>
+              <p className="text-white/60 text-xs">Click to select an image file (max 5MB)</p>
+              <input
+                id="image-upload"
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) processFile(file);
+                  e.target.value = ''; // Reset input
+                }}
+                className="hidden"
+                disabled={isUploading}
+              />
+            </label>
+            {isUploading && (
+              <p className="text-center text-white/60 text-sm">Uploading...</p>
+            )}
           </div>
         ) : (
           <p className="text-center text-white/60 text-sm">Image uploads are disabled.</p>
@@ -327,8 +383,8 @@ export default function Step2Image({
               {images.map(image => (
                 <div 
                   key={image.id} 
-                  className={`p-3 rounded-lg transition-all duration-200 cursor-pointer flex items-center gap-3 ${selectedElementId === image.id ? 'bg-white/10 ring-2 ring-indigo-400' : 'bg-white/5 hover:bg-white/10'}`}
-                  onClick={() => setSelectedElementId(image.id)}
+                  className={`p-3 rounded-lg transition-all duration-200 cursor-pointer flex items-center gap-3 ${selectedElementIds && selectedElementIds.includes(image.id) ? 'bg-white/10 ring-2 ring-indigo-400' : 'bg-white/5 hover:bg-white/10'}`}
+                  onClick={() => setSelectedElementIds([image.id])}
                 >
                   <div className="w-12 h-12 rounded-lg overflow-hidden bg-white/10 flex-shrink-0">
                     <img 

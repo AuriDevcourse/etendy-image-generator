@@ -1,8 +1,17 @@
 import { createClient } from '@supabase/supabase-js'
 
 // Use import.meta.env for Vite instead of process.env
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://frneypfjfscmlahksjyc.supabase.co'
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZybmV5cGZqZnNjbWxhaGtzanljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg1NTA0NjksImV4cCI6MjA3NDEyNjQ2OX0.lt1SDZ4M6BV_MsMd5R8Qj2Jn0D_CSnacccX5NCmcpa0'
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+// Validate environment variables
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error(
+    '❌ Missing Supabase environment variables.\n' +
+    'Please ensure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set in your .env.local file.\n' +
+    'See .env.example for reference.'
+  )
+}
 
 console.log('🔍 Supabase URL:', supabaseUrl)
 console.log('🔍 Supabase Key exists:', !!supabaseKey)
@@ -248,5 +257,359 @@ export const authService = {
   async getCurrentUser() {
     const { data: { user } } = await supabase.auth.getUser()
     return user
+  }
+}
+
+// User preferences and stats helpers
+export const userService = {
+  // Get user preferences
+  async getUserPreferences(userId) {
+    const { data, error } = await supabase
+      .from('user_preferences')
+      .select('*')
+      .eq('user_id', userId)
+      .single()
+    
+    if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
+      throw error
+    }
+    
+    return data?.preferences || null
+  },
+
+  // Save user preferences
+  async saveUserPreferences(userId, preferences) {
+    const { data, error } = await supabase
+      .from('user_preferences')
+      .upsert({
+        user_id: userId,
+        preferences: preferences,
+        updated_at: new Date().toISOString()
+      })
+      .select()
+      .single()
+    
+    if (error) throw error
+    return data
+  },
+
+  // Get user stats
+  async getUserStats(userId) {
+    const { data, error } = await supabase
+      .from('user_stats')
+      .select('*')
+      .eq('user_id', userId)
+      .single()
+    
+    if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
+      throw error
+    }
+    
+    return data || {
+      user_id: userId,
+      images_generated: 0,
+      templates_created: 0,
+      total_downloads: 0,
+      last_login: new Date().toISOString(),
+      created_at: new Date().toISOString()
+    }
+  },
+
+  // Update user stats
+  async updateUserStats(userId, statsUpdate) {
+    const { data, error } = await supabase
+      .from('user_stats')
+      .upsert({
+        user_id: userId,
+        ...statsUpdate,
+        updated_at: new Date().toISOString()
+      })
+      .select()
+      .single()
+    
+    if (error) throw error
+    return data
+  },
+
+  // Increment specific stat
+  async incrementStat(userId, statName, incrementBy = 1) {
+    const currentStats = await this.getUserStats(userId)
+    const newValue = (currentStats[statName] || 0) + incrementBy
+    
+    return await this.updateUserStats(userId, {
+      [statName]: newValue
+    })
+  },
+
+  // Initialize user profile (called on first login)
+  async initializeUserProfile(user) {
+    try {
+      // Create default preferences
+      await this.saveUserPreferences(user.id, {
+        theme: 'dark',
+        defaultCanvasSize: 'square',
+        autoSave: true,
+        showTutorials: true,
+        emailNotifications: false,
+        defaultFontFamily: 'Inter',
+        defaultFontSize: 24,
+        preferredImageFormat: 'png',
+        compressionQuality: 90
+      })
+
+      // Initialize stats
+      await this.updateUserStats(user.id, {
+        images_generated: 0,
+        templates_created: 0,
+        total_downloads: 0,
+        last_login: new Date().toISOString(),
+        created_at: user.created_at || new Date().toISOString()
+      })
+
+      console.log('✅ User profile initialized successfully')
+    } catch (error) {
+      console.error('❌ Failed to initialize user profile:', error)
+      // Don't throw error - this is not critical for app functionality
+    }
+  }
+}
+
+// Admin Settings service for global settings
+export const adminSettingsService = {
+  // Get the latest active admin settings
+  async getSettings() {
+    try {
+      const { data, error } = await supabase
+        .from('admin_settings')
+        .select('*')
+        .eq('is_active', true)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .single()
+      
+      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
+        throw error
+      }
+      
+      return data?.settings || null
+    } catch (error) {
+      console.error('Failed to get admin settings:', error)
+      return null
+    }
+  },
+
+  // Save admin settings (creates new or updates existing)
+  async saveSettings(settings, userId) {
+    try {
+      // First, deactivate all existing settings
+      await supabase
+        .from('admin_settings')
+        .update({ is_active: false })
+        .eq('is_active', true)
+      
+      // Insert new settings as active
+      const { data, error } = await supabase
+        .from('admin_settings')
+        .insert([{
+          settings: settings,
+          updated_by: userId,
+          is_active: true
+        }])
+        .select()
+        .single()
+      
+      if (error) throw error
+      
+      console.log('✅ Admin settings saved to Supabase:', data)
+      return data
+    } catch (error) {
+      console.error('❌ Failed to save admin settings:', error)
+      throw error
+    }
+  },
+
+  // Upload background image to Supabase Storage
+  async uploadBackgroundImage(file, userId) {
+    try {
+      const fileExt = file.name.split('.').pop()
+      const fileName = `admin/backgrounds/${Date.now()}.${fileExt}`
+      
+      const { data, error } = await supabase.storage
+        .from('user-images')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: true
+        })
+      
+      if (error) throw error
+      
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('user-images')
+        .getPublicUrl(fileName)
+      
+      console.log('✅ Background image uploaded to Supabase:', publicUrl)
+      return { path: fileName, url: publicUrl }
+    } catch (error) {
+      console.error('❌ Failed to upload background image:', error)
+      throw error
+    }
+  }
+}
+
+// Storage service for uploading images
+export const storageService = {
+  // Upload image from File object
+  async uploadImage(file, userId, folder = 'uploads') {
+    try {
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${userId}/${folder}/${Date.now()}.${fileExt}`
+      
+      const { data, error } = await supabase.storage
+        .from('user-images')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false
+        })
+      
+      if (error) throw error
+      
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('user-images')
+        .getPublicUrl(fileName)
+      
+      console.log('✅ Image uploaded to Supabase:', publicUrl)
+      return { path: fileName, url: publicUrl }
+    } catch (error) {
+      console.error('❌ Failed to upload image:', error)
+      throw error
+    }
+  },
+
+  // Upload image from base64 data URL
+  async uploadFromDataURL(dataURL, userId, folder = 'generated', fileName = null) {
+    try {
+      // Convert data URL to blob
+      const response = await fetch(dataURL)
+      const blob = await response.blob()
+      
+      // Generate filename
+      const timestamp = Date.now()
+      const finalFileName = fileName || `${userId}/${folder}/${timestamp}.png`
+      
+      const { data, error } = await supabase.storage
+        .from('user-images')
+        .upload(finalFileName, blob, {
+          contentType: 'image/png',
+          cacheControl: '3600',
+          upsert: false
+        })
+      
+      if (error) throw error
+      
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('user-images')
+        .getPublicUrl(finalFileName)
+      
+      console.log('✅ Image uploaded from data URL to Supabase:', publicUrl)
+      return { path: finalFileName, url: publicUrl }
+    } catch (error) {
+      console.error('❌ Failed to upload image from data URL:', error)
+      throw error
+    }
+  },
+
+  // Upload canvas as image
+  async uploadCanvas(canvas, userId, folder = 'generated', customName = null) {
+    try {
+      return new Promise((resolve, reject) => {
+        canvas.toBlob(async (blob) => {
+          if (!blob) {
+            reject(new Error('Failed to convert canvas to blob'))
+            return
+          }
+          
+          const timestamp = Date.now()
+          const fileName = customName || `${userId}/${folder}/${timestamp}.png`
+          
+          const { data, error } = await supabase.storage
+            .from('user-images')
+            .upload(fileName, blob, {
+              contentType: 'image/png',
+              cacheControl: '3600',
+              upsert: false
+            })
+          
+          if (error) {
+            reject(error)
+            return
+          }
+          
+          // Get public URL
+          const { data: { publicUrl } } = supabase.storage
+            .from('user-images')
+            .getPublicUrl(fileName)
+          
+          console.log('✅ Canvas uploaded to Supabase:', publicUrl)
+          resolve({ path: fileName, url: publicUrl })
+        }, 'image/png', 0.95)
+      })
+    } catch (error) {
+      console.error('❌ Failed to upload canvas:', error)
+      throw error
+    }
+  },
+
+  // Delete image
+  async deleteImage(filePath) {
+    try {
+      const { error } = await supabase.storage
+        .from('user-images')
+        .remove([filePath])
+      
+      if (error) throw error
+      console.log('✅ Image deleted from Supabase:', filePath)
+      return true
+    } catch (error) {
+      console.error('❌ Failed to delete image:', error)
+      throw error
+    }
+  },
+
+  // List user's images
+  async listUserImages(userId, folder = null) {
+    try {
+      const path = folder ? `${userId}/${folder}` : userId
+      
+      const { data, error } = await supabase.storage
+        .from('user-images')
+        .list(path, {
+          limit: 100,
+          offset: 0,
+          sortBy: { column: 'created_at', order: 'desc' }
+        })
+      
+      if (error) throw error
+      
+      // Get public URLs for all images
+      const imagesWithUrls = data.map(file => {
+        const { data: { publicUrl } } = supabase.storage
+          .from('user-images')
+          .getPublicUrl(`${path}/${file.name}`)
+        
+        return {
+          ...file,
+          url: publicUrl,
+          path: `${path}/${file.name}`
+        }
+      })
+      
+      return imagesWithUrls
+    } catch (error) {
+      console.error('❌ Failed to list images:', error)
+      throw error
+    }
   }
 }

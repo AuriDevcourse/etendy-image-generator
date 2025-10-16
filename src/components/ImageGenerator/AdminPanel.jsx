@@ -7,8 +7,8 @@ import { Switch } from "@/components/ui/switch";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Type, Brush, Image as ImageIcon, Shapes, Grid, Palette, Upload, Settings, Download, RotateCw, Expand, Database } from 'lucide-react';
 import ColorPicker from './ColorPicker';
-import { FileUploadArea } from './FileUploadArea';
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { FileUploadArea } from './FileUploadArea';
 
 const FONT_FAMILIES = [
   "Archivo Expanded",
@@ -160,6 +160,7 @@ const LockedBackgroundSettings = ({ settings, onSettingChange, section }) => {
 const LockedPageBackgroundSettings = ({ settings, onSettingChange, section }) => {
   const [isLoading, setIsLoading] = useState(false);
   const lockedSettings = settings[section]?.lockedSettings || {};
+  const pageBackgroundType = lockedSettings.pageBackgroundType || 'gradient';
 
   const handleLockedChange = (key, value) => {
     console.log('🎨 PAGE BACKGROUND ADMIN CHANGE:', { section, key, value });
@@ -180,7 +181,7 @@ const LockedPageBackgroundSettings = ({ settings, onSettingChange, section }) =>
   console.log('🔍 LockedPageBackgroundSettings render:', { 
     section, 
     lockedSettings, 
-    pageBackgroundType: lockedSettings.pageBackgroundType,
+    pageBackgroundType: pageBackgroundType,
     allSettings: settings 
   });
 
@@ -214,7 +215,7 @@ const LockedPageBackgroundSettings = ({ settings, onSettingChange, section }) =>
             className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:shadow data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/70 py-2"
             style={{
               cursor: 'pointer',
-              backgroundColor: (lockedSettings.pageBackgroundType || 'gradient') === 'color' ? 'rgba(255, 255, 255, 0.2)' : 'transparent'
+              backgroundColor: pageBackgroundType === 'color' ? 'rgba(255, 255, 255, 0.2)' : 'transparent'
             }}
           >
             Solid
@@ -245,7 +246,7 @@ const LockedPageBackgroundSettings = ({ settings, onSettingChange, section }) =>
             className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:shadow data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/70 py-2"
             style={{
               cursor: 'pointer',
-              backgroundColor: (lockedSettings.pageBackgroundType || 'gradient') === 'gradient' ? 'rgba(255, 255, 255, 0.2)' : 'transparent'
+              backgroundColor: pageBackgroundType === 'gradient' ? 'rgba(255, 255, 255, 0.2)' : 'transparent'
             }}
           >
             Gradient
@@ -276,7 +277,7 @@ const LockedPageBackgroundSettings = ({ settings, onSettingChange, section }) =>
             className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:shadow data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/70 py-2"
             style={{
               cursor: 'pointer',
-              backgroundColor: (lockedSettings.pageBackgroundType || 'gradient') === 'image' ? 'rgba(255, 255, 255, 0.2)' : 'transparent'
+              backgroundColor: pageBackgroundType === 'image' ? 'rgba(255, 255, 255, 0.2)' : 'transparent'
             }}
           >
             Image
@@ -284,18 +285,18 @@ const LockedPageBackgroundSettings = ({ settings, onSettingChange, section }) =>
         </div>
       </div>
 
-      {lockedSettings.pageBackgroundType === 'color' &&
+      {pageBackgroundType === 'color' &&
         <div className="pt-2">
-          <ColorPicker color={lockedSettings.pageBackgroundColor} onChange={(color) => handleLockedChange('pageBackgroundColor', color)} />
+          <ColorPicker color={lockedSettings.pageBackgroundColor || '#1e1b4b'} onChange={(color) => handleLockedChange('pageBackgroundColor', color)} />
         </div>
       }
-      {lockedSettings.pageBackgroundType === 'gradient' &&
+      {pageBackgroundType === 'gradient' &&
         <div className="grid grid-cols-2 gap-4 pt-2">
-          <ColorPicker color={lockedSettings.pageGradientColor1} onChange={(color) => handleLockedChange('pageGradientColor1', color)} />
-          <ColorPicker color={lockedSettings.pageGradientColor2} onChange={(color) => handleLockedChange('pageGradientColor2', color)} />
+          <ColorPicker color={lockedSettings.pageGradientColor1 || '#6366f1'} onChange={(color) => handleLockedChange('pageGradientColor1', color)} />
+          <ColorPicker color={lockedSettings.pageGradientColor2 || '#8b5cf6'} onChange={(color) => handleLockedChange('pageGradientColor2', color)} />
         </div>
       }
-      {lockedSettings.pageBackgroundType === 'image' &&
+      {pageBackgroundType === 'image' &&
         <div className="space-y-4 pt-2">
           <FileUploadArea
             onFileSelect={handleFileProcess}

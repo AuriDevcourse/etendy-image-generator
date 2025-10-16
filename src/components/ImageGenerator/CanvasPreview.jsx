@@ -12,7 +12,7 @@ const SNAP_THRESHOLD = 10; // Pixels for snapping
 
 export default function CanvasPreview({
   elements, setElements,
-  selectedElementId, setSelectedElementId,
+  selectedElementIds, setSelectedElementIds, // Changed from selectedElementId to selectedElementIds
   updateElement,
   canvasWidth, canvasHeight, onCanvasSizeChange,
   backgroundType, gradientColor1, gradientColor2, gradientAngle, backgroundColor, backgroundImage,
@@ -28,6 +28,7 @@ export default function CanvasPreview({
   onSaveTemplate, isSavingTemplate, // Keep prop even if UI is removed in this section, might be used elsewhere
   adminSettings,
   isCropping, // New prop
+  ctrlPressed, // New prop for multi-select
 }) {
   const canvasRef = useRef(null);
   const [fontsLoaded, setFontsLoaded] = useState(false);
@@ -36,6 +37,7 @@ export default function CanvasPreview({
   const [imageCache] = useState(new Map());
   const [shiftPressed, setShiftPressed] = useState(false);
   const [altPressed, setAltPressed] = useState(false);
+  const [localCtrlPressed, setLocalCtrlPressed] = useState(false);
   // const [templateName, setTemplateName] = useState(''); // Removed, as template save UI is removed
   const [snapLines, setSnapLines] = useState({ horizontal: false, vertical: false });
   const [showCanvasSizePanel, setShowCanvasSizePanel] = useState(false); // New state for popover visibility
@@ -45,15 +47,17 @@ export default function CanvasPreview({
   const [customWidth, setCustomWidth] = useState(canvasWidth);
   const [customHeight, setCustomHeight] = useState(canvasHeight);
 
-  // Track shift and alt keys for scaling
+  // Track shift, alt, and ctrl keys for scaling and multi-select
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Shift') setShiftPressed(true);
       if (e.key === 'Alt') setAltPressed(true);
+      if (e.ctrlKey || e.metaKey) setLocalCtrlPressed(true);
     };
     const handleKeyUp = (e) => {
       if (e.key === 'Shift') setShiftPressed(false);
       if (e.key === 'Alt') setAltPressed(false);
+      if (!e.ctrlKey && !e.metaKey) setLocalCtrlPressed(false);
     };
     
     window.addEventListener('keydown', handleKeyDown);
@@ -64,17 +68,17 @@ export default function CanvasPreview({
     };
   }, []);
 
-  // Effect for deleting selected element with Delete key only
+  // Effect for deleting selected elements with Delete key
   useEffect(() => {
     const handleDeleteKey = (e) => {
       // Don't delete if user is typing in an input, textarea, or content-editable field
       const activeElement = document.activeElement;
       const isTyping = activeElement.isContentEditable || ['INPUT', 'TEXTAREA'].includes(activeElement.tagName);
 
-      if (e.key === 'Delete' && selectedElementId && !isTyping) {
+      if (e.key === 'Delete' && selectedElementIds.length > 0 && !isTyping) {
         e.preventDefault(); // Prevent any default behavior
-        setElements(prevElements => prevElements.filter(el => el.id !== selectedElementId));
-        setSelectedElementId(null);
+        setElements(prevElements => prevElements.filter(el => !selectedElementIds.includes(el.id)));
+        setSelectedElementIds([]);
       }
     };
 
@@ -82,7 +86,7 @@ export default function CanvasPreview({
     return () => {
       window.removeEventListener('keydown', handleDeleteKey);
     };
-  }, [selectedElementId, setElements, setSelectedElementId]);
+  }, [selectedElementIds, setElements, setSelectedElementIds]);
 
   useEffect(() => {
     const loadFonts = async () => {
@@ -544,32 +548,34 @@ export default function CanvasPreview({
         ctx.restore(); // Restore context state after drawing each element (resets filter, clip, opacity, rotation, etc.)
     }
 
-    // Draw selection box and handles for the selected element
-    const selectedElement = elements.find(el => el.id === selectedElementId);
-    if (selectedElement) {
-      const rect = getElementRect(selectedElement);
-      if (rect) {
-        ctx.strokeStyle = 'rgba(76, 126, 255, 0.9)';
-        ctx.lineWidth = 4;
-        ctx.setLineDash([8, 4]);
-        ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
-        ctx.setLineDash([]);
-        
-        // Only show handles for non-text elements
-        if (selectedElement.type !== 'text') {
-            const handles = getHandles(rect);
-            ctx.fillStyle = '#FFFFFF';
-            ctx.strokeStyle = '#000000';
-            ctx.lineWidth = 2;
-            Object.values(handles).forEach(handle => {
-              ctx.beginPath();
-              ctx.arc(handle.x, handle.y, HANDLE_SIZE / 2, 0, 2 * Math.PI);
-              ctx.fill();
-              ctx.stroke();
-            });
+    // Draw selection boxes and handles for all selected elements
+    selectedElementIds.forEach(selectedId => {
+      const selectedElement = elements.find(el => el.id === selectedId);
+      if (selectedElement) {
+        const rect = getElementRect(selectedElement);
+        if (rect) {
+          ctx.strokeStyle = 'rgba(76, 126, 255, 0.9)';
+          ctx.lineWidth = 4;
+          ctx.setLineDash([8, 4]);
+          ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
+          ctx.setLineDash([]);
+          
+          // Only show handles if single element is selected and it's not text
+          if (selectedElementIds.length === 1 && selectedElement.type !== 'text') {
+              const handles = getHandles(rect);
+              ctx.fillStyle = '#FFFFFF';
+              ctx.strokeStyle = '#000000';
+              ctx.lineWidth = 2;
+              Object.values(handles).forEach(handle => {
+                ctx.beginPath();
+                ctx.arc(handle.x, handle.y, HANDLE_SIZE / 2, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.stroke();
+              });
+          }
         }
       }
-    }
+    });
     
     // Draw Canvas Edge Indicators for ALL elements (not just text)
     const edgeGlowWidth = 8;
@@ -622,7 +628,7 @@ export default function CanvasPreview({
   }, [
     elements, canvasWidth, canvasHeight, backgroundType, backgroundImage, backgroundColor, gradientColor1, gradientColor2, gradientAngle,
     overlayType, overlayColor, overlayOpacity, overlayGradientColor1, overlayGradientOpacity1, overlayGradientColor2, overlayGradientOpacity2,
-    overlayGradientAngle, showCanvasBackgroundOverlay, loadImage, getElementRect, getHandles, drawRoundedRectPath, drawStarPath, selectedElementId,
+    overlayGradientAngle, showCanvasBackgroundOverlay, loadImage, getElementRect, getHandles, drawRoundedRectPath, drawStarPath, selectedElementIds,
     backgroundImageScale, backgroundImageX, backgroundImageY, snapLines, 
     // New dependencies for background image border/radius
     backgroundImageBorderRadius, backgroundImageBorderWidth, backgroundImageBorderColor
@@ -726,6 +732,7 @@ export default function CanvasPreview({
     const mousePos = getMousePosOnCanvas(e);
     if (!mousePos) return;
     
+    const isCtrlHeld = e.ctrlKey || e.metaKey || localCtrlPressed;
     let foundInteraction = false;
     let newInteractionState = { type: 'none' };
     let elementToSelectId = null;
@@ -735,8 +742,8 @@ export default function CanvasPreview({
         const element = elements[i];
         const rect = getElementRect(element);
         
-        // 1. Check resize handles first (but not for text)
-        if (element.type !== 'text' && rect) {
+        // 1. Check resize handles first (but only if single element selected and not text)
+        if (selectedElementIds.length === 1 && element.type !== 'text' && rect && selectedElementIds.includes(element.id)) {
             const handles = getHandles(rect);
             for (const [key, handle] of Object.entries(handles)) {
                 if (Math.hypot(handle.x - mousePos.x, handle.y - mousePos.y) < HANDLE_SIZE) {
@@ -749,7 +756,7 @@ export default function CanvasPreview({
         }
         if (foundInteraction) break;
 
-        // 2. Then check for drag
+        // 2. Then check for drag/select
         let hit = false;
         if (element.type === 'shape' && element.fillType === 'outline') {
             hit = isPointInOutline(mousePos, element);
@@ -763,9 +770,30 @@ export default function CanvasPreview({
         }
 
         if (hit) {
-            newInteractionState = { type: 'drag', elementId: element.id, startMouse: mousePos, startPos: { x: element.x, y: element.y } };
-            elementToSelectId = element.id;
-            foundInteraction = true;
+            // If element is in a group and any group member is selected, select all group members for dragging
+            if (element.groupId && selectedElementIds.some(id => {
+              const el = elements.find(e => e.id === id);
+              return el && el.groupId === element.groupId;
+            })) {
+              // Get all elements in this group
+              const groupElementIds = elements.filter(el => el.groupId === element.groupId).map(el => el.id);
+              newInteractionState = { 
+                type: 'drag', 
+                elementIds: groupElementIds, 
+                startMouse: mousePos, 
+                startPositions: groupElementIds.reduce((acc, id) => {
+                  const el = elements.find(e => e.id === id);
+                  if (el) acc[id] = { x: el.x, y: el.y };
+                  return acc;
+                }, {})
+              };
+              elementToSelectId = element.id;
+              foundInteraction = true;
+            } else {
+              newInteractionState = { type: 'drag', elementId: element.id, startMouse: mousePos, startPos: { x: element.x, y: element.y } };
+              elementToSelectId = element.id;
+              foundInteraction = true;
+            }
             break;
         }
     }
@@ -773,16 +801,27 @@ export default function CanvasPreview({
     setInteractionState(newInteractionState);
     if (foundInteraction) {
       onInteractionStart();
-      // Use the passed handleElementSelection if available, otherwise use setSelectedElementId
-      if (typeof setSelectedElementId === 'function' && setSelectedElementId.name === 'handleElementSelection') {
-        setSelectedElementId(elementToSelectId); // This branch would likely only be hit if setSelectedElementId was renamed by a parent
+      
+      // Multi-select with Ctrl
+      if (isCtrlHeld) {
+        setSelectedElementIds(prev => {
+          if (prev.includes(elementToSelectId)) {
+            // Deselect if already selected
+            return prev.filter(id => id !== elementToSelectId);
+          } else {
+            // Add to selection
+            return [...prev, elementToSelectId];
+          }
+        });
       } else {
-        setSelectedElementId(elementToSelectId);
+        // Single select (replace selection)
+        setSelectedElementIds([elementToSelectId]);
       }
     } else {
-        setSelectedElementId(null);
+      // Clicked on empty space - clear selection
+      setSelectedElementIds([]);
     }
-  }, [getMousePosOnCanvas, elements, getElementRect, getHandles, onInteractionStart, setSelectedElementId, isPointInOutline]);
+  }, [getMousePosOnCanvas, elements, getElementRect, getHandles, onInteractionStart, setSelectedElementIds, isPointInOutline, selectedElementIds, localCtrlPressed]);
 
   const handleMouseMove = useCallback((e) => {
     const mousePos = getMousePosOnCanvas(e);
@@ -796,8 +835,8 @@ export default function CanvasPreview({
             if (!rect) continue;
             
             // Only check for resize handle cursors on non-text elements
-            // AND only for the currently selected element
-            if (element.type !== 'text' && selectedElementId === element.id) {
+            // AND only for the currently selected element (single selection only)
+            if (element.type !== 'text' && selectedElementIds.length === 1 && selectedElementIds.includes(element.id)) {
                 const handles = getHandles(rect);
                 // Correctly iterate over handle objects, not [key, value] pairs
                 for (const handle of Object.values(handles)) {
@@ -828,53 +867,74 @@ export default function CanvasPreview({
         return;
     }
 
-    const { type, elementId, startMouse, startPos, handle, startRect } = interactionState;
-    const element = elements.find(el => el.id === elementId);
-    if (!element) return;
+    const { type, elementId, elementIds, startMouse, startPos, startPositions, handle, startRect } = interactionState;
     
     if (type === 'drag') {
-      let currentX = startPos.x + (mousePos.x - startMouse.x);
-      let currentY = startPos.y + (mousePos.y - startMouse.y);
+      // Handle group dragging (multiple elements)
+      if (elementIds && startPositions) {
+        const deltaX = mousePos.x - startMouse.x;
+        const deltaY = mousePos.y - startMouse.y;
+        
+        // Update all elements in the group
+        elementIds.forEach(id => {
+          const startPosition = startPositions[id];
+          if (startPosition) {
+            updateElement(id, { 
+              x: startPosition.x + deltaX, 
+              y: startPosition.y + deltaY 
+            });
+          }
+        });
+        setSnapLines({ horizontal: false, vertical: false });
+      } else {
+        // Single element drag
+        const element = elements.find(el => el.id === elementId);
+        if (!element) return;
+        
+        let currentX = startPos.x + (mousePos.x - startMouse.x);
+        let currentY = startPos.y + (mousePos.y - startMouse.y);
 
-      let isSnappedV = false;
-      let isSnappedH = false;
+        let isSnappedV = false;
+        let isSnappedH = false;
 
-      const elementAtCurrentPos = { ...element, x: currentX, y: currentY };
-      const currentRect = getElementRect(elementAtCurrentPos);
+        const elementAtCurrentPos = { ...element, x: currentX, y: currentY };
+        const currentRect = getElementRect(elementAtCurrentPos);
 
-      if (currentRect) {
-        if (Math.abs(currentRect.x) < SNAP_THRESHOLD) {
-            currentX -= currentRect.x;
-        }
-        if (Math.abs(currentRect.x + currentRect.width - canvasWidth) < SNAP_THRESHOLD) {
-            currentX -= (currentRect.x + currentRect.width - canvasWidth);
-        }
-        if (Math.abs(currentRect.y) < SNAP_THRESHOLD) {
-            currentY -= currentRect.y;
-        }
-        if (Math.abs(currentRect.y + currentRect.height - canvasHeight) < SNAP_THRESHOLD) {
-            currentY -= (currentRect.y + currentRect.height - canvasHeight);
-        }
+        if (currentRect) {
+          if (Math.abs(currentRect.x) < SNAP_THRESHOLD) {
+              currentX -= currentRect.x;
+          }
+          if (Math.abs(currentRect.x + currentRect.width - canvasWidth) < SNAP_THRESHOLD) {
+              currentX -= (currentRect.x + currentRect.width - canvasWidth);
+          }
+          if (Math.abs(currentRect.y) < SNAP_THRESHOLD) {
+              currentY -= currentRect.y;
+          }
+          if (Math.abs(currentRect.y + currentRect.height - canvasHeight) < SNAP_THRESHOLD) {
+              currentY -= (currentRect.y + currentRect.height - canvasHeight);
+          }
 
-        const elementCenterX = currentRect.x + currentRect.width / 2;
-        const elementCenterY = currentRect.y + currentRect.height / 2;
-        const canvasCenterX = canvasWidth / 2;
-        const canvasCenterY = canvasHeight / 2;
+          const elementCenterX = currentRect.x + currentRect.width / 2;
+          const elementCenterY = currentRect.y + currentRect.height / 2;
+          const canvasCenterX = canvasWidth / 2;
+          const canvasCenterY = canvasHeight / 2;
 
-        if (Math.abs(elementCenterX - canvasCenterX) < SNAP_THRESHOLD) {
-          currentX -= (elementCenterX - canvasCenterX);
-          isSnappedH = true;
+          if (Math.abs(elementCenterX - canvasCenterX) < SNAP_THRESHOLD) {
+            currentX -= (elementCenterX - canvasCenterX);
+            isSnappedH = true;
+          }
+          if (Math.abs(elementCenterY - canvasCenterY) < SNAP_THRESHOLD) {
+            currentY -= (elementCenterY - canvasCenterY);
+            isSnappedV = true;
+          }
         }
-        if (Math.abs(elementCenterY - canvasCenterY) < SNAP_THRESHOLD) {
-          currentY -= (elementCenterY - canvasCenterY);
-          isSnappedV = true;
-        }
+        setSnapLines({ horizontal: isSnappedV, vertical: isSnappedH });
+        updateElement(elementId, { x: currentX, y: currentY });
       }
-      setSnapLines({ horizontal: isSnappedV, vertical: isSnappedH });
-      updateElement(elementId, { x: currentX, y: currentY });
 
     } else if (type === 'resize') {
-        if (element.type === 'text') {
+        const element = elements.find(el => el.id === elementId);
+        if (!element || element.type === 'text') {
             return; 
         }
 
@@ -1056,7 +1116,7 @@ export default function CanvasPreview({
         updateElement(elementId, updatedProps);
         setSnapLines({ horizontal: false, vertical: false }); // Resize doesn't have center snapping guidelines
     }
-  }, [interactionState, getMousePosOnCanvas, elements, updateElement, getElementRect, getHandles, shiftPressed, altPressed, isPointInOutline, canvasWidth, canvasHeight, setSnapLines, selectedElementId]);
+  }, [interactionState, getMousePosOnCanvas, elements, updateElement, getElementRect, getHandles, shiftPressed, altPressed, isPointInOutline, canvasWidth, canvasHeight, setSnapLines, selectedElementIds]);
 
   const handleMouseUp = useCallback(() => {
     setInteractionState({ type: 'none' });
@@ -1180,13 +1240,13 @@ export default function CanvasPreview({
       <div className="flex items-center justify-between mt-3 px-16 text-white/80"> {/* Added px-16 for horizontal alignment */}
         <div className="flex items-center gap-3">
           {adminSettings?.generalControls?.resetEnabled !== false && onCanvasReset && (
-            <Button onClick={onCanvasReset} variant="ghost" size="sm" className="text-white/70 hover:bg-white/10 hover:text-white">
-              <RotateCw className="w-4 h-4 mr-2" /> Reset
+            <Button onClick={onCanvasReset} size="sm" className="text-white hover:bg-white/20 bg-white/10 backdrop-blur-sm gap-1 border-0">
+              <RotateCw className="w-4 h-4" /> Reset
             </Button>
           )}
           {adminSettings?.generalControls?.undoEnabled !== false && onUndo && (
-            <Button onClick={onUndo} disabled={!canUndo} variant="ghost" size="sm" className="text-white/70 hover:bg-white/10 hover:text-white disabled:opacity-50">
-              <Undo2 className="w-4 h-4 mr-2" /> Undo
+            <Button onClick={onUndo} disabled={!canUndo} size="sm" className="text-white hover:bg-white/20 disabled:opacity-50 bg-white/10 backdrop-blur-sm gap-1 border-0">
+              <Undo2 className="w-4 h-4" /> Undo
             </Button>
           )}
           {/* Show Save as Template button only if admin */}
@@ -1199,19 +1259,18 @@ export default function CanvasPreview({
                 }
               }}
               disabled={isSavingTemplate}
-              variant="ghost"
               size="sm"
-              className="text-white/70 hover:bg-white/10 hover:text-white"
+              className="text-white hover:bg-white/20 bg-white/10 backdrop-blur-sm gap-1 border-0"
             >
-              <Save className="w-4 h-4 mr-2" />
+              <Save className="w-4 h-4" />
               {isSavingTemplate ? "Saving..." : "Save as Template"}
             </Button>
           )}
         </div>
         <div className="flex items-center gap-3">
           {onSave && (
-            <Button onClick={onSave} disabled={isSaving} variant="ghost" size="sm" className="text-white/70 hover:bg-white/10 hover:text-white">
-              <Heart className="w-4 h-4 mr-2" /> {isSaving ? "Saving..." : "Save to Gallery"}
+            <Button onClick={onSave} disabled={isSaving} size="sm" className="text-white hover:bg-white/20 bg-white/10 backdrop-blur-sm gap-1 border-0">
+              <Heart className="w-4 h-4" /> {isSaving ? "Saving..." : "Save to Gallery"}
             </Button>
           )}
           {onSaveTemplate && (
@@ -1223,23 +1282,22 @@ export default function CanvasPreview({
                 }
               }} 
               disabled={isSavingTemplate} 
-              variant="ghost" 
               size="sm" 
-              className="text-white/70 hover:bg-white/10 hover:text-white"
+              className="text-white hover:bg-white/20 bg-white/10 backdrop-blur-sm gap-1 border-0"
             >
-              <Save className="w-4 h-4 mr-2" /> {isSavingTemplate ? "Saving..." : "Save to Template"}
+              <Save className="w-4 h-4" /> {isSavingTemplate ? "Saving..." : "Save to Template"}
             </Button>
           )}
           {onDownload && (
-            <Button onClick={() => onDownload('png')} disabled={isDownloading} variant="ghost" size="sm" className="text-white/70 hover:bg-white/10 hover:text-white">
-              <Download className="w-4 h-4 mr-2" /> {isDownloading ? "Downloading..." : "Download"}
+            <Button onClick={() => onDownload('png')} disabled={isDownloading} size="sm" className="text-white hover:bg-white/20 bg-white/10 backdrop-blur-sm gap-1 border-0">
+              <Download className="w-4 h-4" /> {isDownloading ? "Downloading..." : "Download"}
             </Button>
           )}
           {(!adminSettings?.canvasControls?.lockCanvasSize) && (
             <Popover open={showBottomCanvasSizePanel} onOpenChange={setShowBottomCanvasSizePanel}>
               <PopoverTrigger asChild>
-                <Button variant="ghost" size="sm" className="text-white/70 hover:bg-white/10 hover:text-white">
-                  <Expand className="w-4 h-4 mr-2" /> Canvas Size
+                <Button size="sm" className="text-white hover:bg-white/20 bg-white/10 backdrop-blur-sm gap-1 border-0">
+                  <Expand className="w-4 h-4" /> Canvas Size
                 </Button>
               </PopoverTrigger>
               <PopoverContent 
