@@ -4,7 +4,7 @@ import { GeneratedImage } from "@/api/entities";
 import { Template } from "@/api/entities";
 import { User } from "@/api/entities"; // Assuming User entity exists for role checking
 import { AdminSettings } from '@/api/entities'; // Import AdminSettings
-import { supabase, presetService, authService, userService, adminSettingsService } from '../lib/supabase';
+import { supabase, presetService, authService, userService, adminSettingsService, templateService } from '../lib/supabase';
 
 import CanvasPreview from '../components/ImageGenerator/CanvasPreview';
 import Step1Background from '../components/ImageGenerator/steps/Step1_Background';
@@ -1236,25 +1236,43 @@ export default function ImageGeneratorPage() {
 
   const loadTemplates = useCallback(async () => {
     console.log('🔄 LOAD TEMPLATES CALLED for preset:', currentPreset?.name || 'global');
+    
+    if (!currentPreset?.id) {
+      console.log('⚠️ No preset selected, skipping template load');
+      setTemplates([]);
+      return;
+    }
+    
     setIsLoadingTemplates(true);
     try {
-      // Use preset-specific storage key
-      const storageKey = currentPreset?.id 
-        ? `etendy_templates_preset_${currentPreset.id}` 
-        : 'etendy_templates';
+      // Load templates from database
+      console.log('📊 Loading templates from database for preset:', currentPreset.id);
+      const dbTemplates = await templateService.getTemplates(currentPreset.id);
+      console.log('✅ Loaded templates from database:', dbTemplates.map(t => ({ name: t.name, id: t.id })));
+      console.log('📊 Total templates:', dbTemplates.length);
+      setTemplates(dbTemplates);
       
-      console.log('Loading templates from localStorage for preset:', currentPreset?.name || 'global');
-      const localTemplates = JSON.parse(localStorage.getItem(storageKey) || '[]');
-      console.log('📋 Loaded templates for this preset:', localTemplates.map(t => ({ name: t.name, id: t.id })));
-      console.log('📊 Total loaded templates for this preset:', localTemplates.length);
-      setTemplates(localTemplates);
+      // Optional: Auto-migrate localStorage templates if database is empty
+      if (currentUser && dbTemplates.length === 0) {
+        console.log('🔄 Checking for localStorage templates to migrate...');
+        const result = await templateService.migrateFromLocalStorage(
+          currentPreset.id, 
+          currentUser.id
+        );
+        if (result.migrated > 0) {
+          console.log(`✅ Migrated ${result.migrated} templates from localStorage`);
+          // Reload templates after migration
+          const updatedTemplates = await templateService.getTemplates(currentPreset.id);
+          setTemplates(updatedTemplates);
+        }
+      }
     } catch (error) {
-      console.error('Failed to load templates from localStorage:', error);
+      console.error('❌ Failed to load templates:', error);
       setTemplates([]);
     } finally {
       setIsLoadingTemplates(false);
     }
-  }, [currentPreset]);
+  }, [currentPreset, currentUser]);
 
   useEffect(() => {
     loadGallery();
@@ -1982,62 +2000,32 @@ export default function ImageGeneratorPage() {
   ]);
 
   const handleSaveTemplate = useCallback(async (templateName) => {
-    console.log('🚀🚀🚀 HANDLE SAVE TEMPLATE CALLED with name:', templateName);
+    console.log('🚀 HANDLE SAVE TEMPLATE CALLED with name:', templateName);
     console.log('📊 Current state - elements:', elements.length, 'canvasWidth:', canvasWidth, 'canvasHeight:', canvasHeight);
-    console.log('👤 Admin status:', { isAdmin, currentUser });
+    console.log('👤 User:', currentUser?.email);
     console.log('📍 Current preset:', currentPreset?.id, currentPreset?.name);
     
-    // Use preset-specific storage key (4 templates per preset)
-    const storageKey = currentPreset?.id 
-      ? `etendy_templates_preset_${currentPreset.id}` 
-      : 'etendy_templates'; // Fallback to global if no preset
+    if (!currentPreset?.id) {
+      alert('Please select a preset first');
+      return;
+    }
     
-    // Check what's currently in localStorage for THIS preset's templates
-    const existingTemplatesRaw = localStorage.getItem(storageKey);
-    console.log('🔍 Raw localStorage templates for preset:', existingTemplatesRaw);
-    const existingTemplates = JSON.parse(existingTemplatesRaw || '[]');
-    console.log('🔍 Parsed existing templates for this preset:', existingTemplates.map(t => ({ name: t.name, id: t.id })));
+    if (!currentUser?.id) {
+      alert('Please sign in to save templates');
+      return;
+    }
     
-    // Add global functions for debugging
-    window.clearSattendStorage = () => {
-      localStorage.removeItem('etendy_templates');
-      localStorage.removeItem('etendy_gallery');
-      localStorage.removeItem('etendy_admin_settings');
-      console.log('🧹 Cleared all Sattend localStorage data');
-    };
-    
-    window.checkSattendTemplates = () => {
-      const storageKey = currentPreset?.id 
-        ? `etendy_templates_preset_${currentPreset.id}` 
-        : 'etendy_templates';
-      const templates = JSON.parse(localStorage.getItem(storageKey) || '[]');
-      console.log('📋 Current templates for this preset:', templates.map(t => ({ name: t.name, id: t.id, created: t.created_date })));
-      console.log('📊 Total templates for this preset:', templates.length);
-      return templates;
-    };
-    
-    window.forceCleanStorage = () => {
-      localStorage.removeItem('etendy_gallery');
-      localStorage.removeItem('etendy_admin_settings');
-      console.log('🧹 Force cleared gallery and admin settings');
-      
-      // Check storage usage
-      let totalSize = 0;
-      for (let key in localStorage) {
-        if (localStorage.hasOwnProperty(key)) {
-          const size = localStorage[key].length;
-          totalSize += size;
-          console.log(`  ${key}: ${(size / 1024).toFixed(1)}KB`);
-        }
-      }
-      console.log(`  Total after cleanup: ${(totalSize / 1024).toFixed(1)}KB`);
-    };
-    
-    const presetInfo = currentPreset ? ` for preset "${currentPreset.name}"` : '';
-    alert(`Template save started for: ${templateName}${presetInfo}. Currently have ${existingTemplates.length} templates for this preset.`);
     setIsSavingTemplate(true);
     try {
-      console.log('💾 Saving template to localStorage for preset:', currentPreset?.name || 'global');
+      // Check template count first
+      const count = await templateService.getTemplateCount(currentPreset.id);
+      if (count >= 4) {
+        alert('Maximum of 4 templates per preset reached. Please delete an existing template first.');
+        setIsSavingTemplate(false);
+        return;
+      }
+      
+      console.log('💾 Saving template to database for preset:', currentPreset.name);
       
       // Build template data and thumbnail via dataURL
       const exportCanvas = document.createElement('canvas');
@@ -2098,7 +2086,7 @@ export default function ImageGeneratorPage() {
         }
       }
 
-      // Include template data WITHOUT background image (too large for localStorage)
+      // Prepare template data
       const templateData = {
         elements: JSON.parse(JSON.stringify(elements)),
         canvasWidth,
@@ -2108,8 +2096,7 @@ export default function ImageGeneratorPage() {
         gradientColor2, 
         gradientAngle, 
         backgroundColor,
-        // EXCLUDE backgroundImage to save storage space
-        // backgroundImage: backgroundImage, // Too large!
+        backgroundImage, // Include background image in database (no storage limits!)
         backgroundImageNaturalDimensions: backgroundImageNaturalDimensions,
         backgroundImageScale, 
         backgroundImageX, 
@@ -2124,97 +2111,27 @@ export default function ImageGeneratorPage() {
         overlayGradientAngle,
       };
       
-      console.log('💾 Template data size optimization:', {
-        hasBackgroundImage: !!backgroundImage,
-        backgroundImageExcluded: true, // Always excluded to save space
-        elementsCount: elements.length
-      });
+      console.log('💾 Template data prepared:', { name: templateName, elements: elements.length });
       
-      const localTemplate = {
-        id: crypto.randomUUID(),
-        name: templateName,
-        thumbnail_url: dataUrl,
-        template_data: templateData,
-        created_date: new Date().toISOString(),
-      };
+      // Save to database
+      await templateService.saveTemplate(
+        currentPreset.id,
+        currentUser.id,
+        templateName,
+        templateData,
+        dataUrl // thumbnail
+      );
       
-      console.log('📦 Template data prepared:', { name: templateName, elements: elements.length });
+      console.log('✅ Template saved to database successfully');
       
-      // Check localStorage usage before saving
-      console.log('💾 LocalStorage usage check:');
-      let totalSize = 0;
-      for (let key in localStorage) {
-        if (localStorage.hasOwnProperty(key)) {
-          const size = localStorage[key].length;
-          totalSize += size;
-          console.log(`  ${key}: ${(size / 1024).toFixed(1)}KB`);
-        }
-      }
-      console.log(`  Total: ${(totalSize / 1024).toFixed(1)}KB`);
+      // Reload templates from database
+      await loadTemplates();
       
-      // Storage quota management - PER PRESET (4 templates per preset)
-      const local = JSON.parse(localStorage.getItem(storageKey) || '[]');
-      console.log('📋 Current templates count for this preset:', local.length);
-      
-      // If we already have 4 templates for THIS preset, remove the oldest one first
-      let templatesToKeep = local;
-      if (local.length >= 4) {
-        console.log('⚠️ Already have 4 templates for this preset, removing oldest to make space...');
-        templatesToKeep = local.slice(0, 3); // Keep only 3 most recent
-        console.log('🗑️ Removed oldest template:', local[local.length - 1]?.name);
-      }
-      
-      // Keep existing templates and add new one (limit to 4 templates max)
-      const updated = [localTemplate, ...templatesToKeep];
-      console.log('📋 Template save attempt:', {
-        newTemplate: templateName,
-        existingCount: local.length,
-        totalAfterSave: updated.length,
-        existingTemplates: local.map(t => t.name)
-      });
-      
-      try {
-        localStorage.setItem(storageKey, JSON.stringify(updated));
-        console.log('✅ Template saved to localStorage successfully for preset:', currentPreset?.name || 'global');
-      } catch (quotaError) {
-        if (quotaError.name === 'QuotaExceededError') {
-          console.log('⚠️ Storage quota exceeded, trying progressive cleanup...');
-          
-          // First try: Keep 4 templates for this preset
-          const limitedTemplates = [localTemplate, ...local.slice(0, 3)]; // Keep 4 total for this preset
-          console.log('🔄 Trying to save with 4 templates for this preset:', limitedTemplates.map(t => t.name));
-          
-          try {
-            localStorage.setItem(storageKey, JSON.stringify(limitedTemplates));
-            console.log('✅ Template saved (kept 4 templates for this preset)');
-          } catch (stillFullError) {
-            // Second try: Keep only 2 templates for this preset
-            const minimalTemplates = [localTemplate, ...local.slice(0, 1)]; // Keep 2 total
-            console.log('🔄 Trying to save with 2 templates for this preset:', minimalTemplates.map(t => t.name));
-            try {
-              localStorage.setItem(storageKey, JSON.stringify(minimalTemplates));
-              console.log('✅ Template saved after cleanup (kept 2 templates for this preset)');
-            } catch (finalError) {
-              // Last resort: Keep only this template
-              const singleTemplate = [localTemplate];
-              console.log('🔄 Last resort: saving only this template:', singleTemplate.map(t => t.name));
-              localStorage.setItem(storageKey, JSON.stringify(singleTemplate));
-              console.log('✅ Template saved (kept only this template)');
-            }
-          }
-        } else {
-          throw quotaError;
-        }
-      }
-      
-      // Update templates state with the saved templates for this preset
-      const savedTemplates = JSON.parse(localStorage.getItem(storageKey) || '[]');
-      console.log('🔄 Updating templates state for this preset with:', savedTemplates.map(t => ({ name: t.name, id: t.id })));
-      console.log('📊 Total templates for this preset after save:', savedTemplates.length);
-      setTemplates(savedTemplates);
       setShowTemplatesPanel(true);
       setShowSaveSuccess(true);
       setTimeout(() => setShowSaveSuccess(false), 2500);
+      
+      alert(`Template "${templateName}" saved successfully!`);
       
     } catch (error) {
       console.error('❌ Failed to save template:', error);
@@ -2224,58 +2141,31 @@ export default function ImageGeneratorPage() {
         name: error.name
       });
       
-      // More specific error handling
-      let errorMessage = 'Failed to save template. Please try again.';
-      if (error.message) {
-        errorMessage = `Template save failed: ${error.message}`;
-      }
-      
-      // Special handling for quota errors
-      if (error.name === 'QuotaExceededError') {
-        errorMessage = 'Storage is full for this preset. Old templates were removed to make space, but the save still failed. Please try again.';
-      }
+      // Error handling
+      const errorMessage = error.message || 'Failed to save template. Please try again.';
       
       setSaveErrorMessage(errorMessage);
       setShowSaveError(true);
       setTimeout(() => setShowSaveError(false), 5000);
       
-      // Also show alert for immediate feedback
-      alert(`Template save failed: ${error.message || 'Unknown error'}`);
+      alert(`Template save failed: ${errorMessage}`);
     } finally {
       setIsSavingTemplate(false);
       console.log('🏁 Template save operation completed');
     }
-  }, [elements, canvasWidth, canvasHeight, backgroundType, gradientColor1, gradientColor2, gradientAngle, backgroundColor, backgroundImage, backgroundImageScale, backgroundImageX, backgroundImageY, overlayType, overlayColor, overlayOpacity, overlayGradientColor1, overlayGradientOpacity1, overlayGradientColor2, overlayGradientOpacity2, overlayGradientAngle, drawFinalImage, currentPreset, isAdmin, currentUser]);
+  }, [elements, canvasWidth, canvasHeight, backgroundType, gradientColor1, gradientColor2, gradientAngle, backgroundColor, backgroundImage, backgroundImageScale, backgroundImageX, backgroundImageY, overlayType, overlayColor, overlayOpacity, overlayGradientColor1, overlayGradientOpacity1, overlayGradientColor2, overlayGradientOpacity2, overlayGradientAngle, backgroundImageNaturalDimensions, drawFinalImage, currentPreset, currentUser, loadTemplates]);
 
   const handleDeleteTemplate = useCallback(async (templateId) => {
     try {
-      await Template.delete(templateId);
+      console.log('🗑️ Deleting template:', templateId);
+      await templateService.deleteTemplate(templateId);
       await loadTemplates();
-      // If the deleted template was the user's default, unset it
-      if (currentUser?.default_template_id === templateId) {
-        await User.updateMyUserData({ default_template_id: null });
-        setCurrentUser(prev => ({ ...prev, default_template_id: null }));
-      }
+      console.log('✅ Template deleted successfully');
     } catch (error) {
-      console.warn('Failed to delete template via API. Deleting from localStorage instead:', error);
-      try {
-        // Use preset-specific storage key
-        const storageKey = currentPreset?.id 
-          ? `etendy_templates_preset_${currentPreset.id}` 
-          : 'etendy_templates';
-        
-        const local = JSON.parse(localStorage.getItem(storageKey) || '[]');
-        const updated = local.filter(t => t.id !== templateId);
-        localStorage.setItem(storageKey, JSON.stringify(updated));
-        setTemplates(updated);
-      } catch (lsErr) {
-        console.error('Failed to delete template locally:', lsErr);
-        setSaveErrorMessage('Failed to delete template. Please try again.');
-        setShowSaveError(true);
-        setTimeout(() => setShowSaveError(false), 5000);
-      }
+      console.error('❌ Failed to delete template:', error);
+      alert('Failed to delete template. Please try again.');
     }
-  }, [loadTemplates, currentUser, currentPreset]);
+  }, [loadTemplates]);
 
   const handleSetDefaultTemplate = useCallback(async (templateId) => {
     if (!currentUser) return;

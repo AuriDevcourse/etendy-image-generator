@@ -650,3 +650,158 @@ export const storageService = {
     }
   }
 }
+
+// Template service for database-backed templates
+export const templateService = {
+  // Get all templates for a preset
+  async getTemplates(presetId) {
+    try {
+      const { data, error } = await supabase
+        .from('templates')
+        .select('*')
+        .eq('preset_id', presetId)
+        .order('created_at', { ascending: false })
+      
+      if (error) throw error
+      
+      console.log(`✅ Loaded ${data?.length || 0} templates for preset ${presetId}`)
+      return data || []
+    } catch (error) {
+      console.error('❌ Failed to get templates:', error)
+      throw error
+    }
+  },
+
+  // Save a new template (enforces 4 per preset limit via database trigger)
+  async saveTemplate(presetId, userId, name, templateData, thumbnail = null) {
+    try {
+      const { data, error } = await supabase
+        .from('templates')
+        .insert([{
+          preset_id: presetId,
+          user_id: userId,
+          name: name,
+          template_data: templateData,
+          thumbnail: thumbnail
+        }])
+        .select()
+        .single()
+      
+      if (error) {
+        // Check if it's the template limit error
+        if (error.message && error.message.includes('Maximum of 4 templates')) {
+          throw new Error('Maximum of 4 templates per preset reached. Please delete an existing template first.')
+        }
+        throw error
+      }
+      
+      console.log('✅ Template saved to database:', data)
+      return data
+    } catch (error) {
+      console.error('❌ Failed to save template:', error)
+      throw error
+    }
+  },
+
+  // Update an existing template
+  async updateTemplate(templateId, updates) {
+    try {
+      const { data, error } = await supabase
+        .from('templates')
+        .update(updates)
+        .eq('id', templateId)
+        .select()
+        .single()
+      
+      if (error) throw error
+      
+      console.log('✅ Template updated:', data)
+      return data
+    } catch (error) {
+      console.error('❌ Failed to update template:', error)
+      throw error
+    }
+  },
+
+  // Delete a template
+  async deleteTemplate(templateId) {
+    try {
+      const { error } = await supabase
+        .from('templates')
+        .delete()
+        .eq('id', templateId)
+      
+      if (error) throw error
+      
+      console.log('✅ Template deleted:', templateId)
+      return true
+    } catch (error) {
+      console.error('❌ Failed to delete template:', error)
+      throw error
+    }
+  },
+
+  // Check template count for a preset
+  async getTemplateCount(presetId) {
+    try {
+      const { count, error } = await supabase
+        .from('templates')
+        .select('*', { count: 'exact', head: true })
+        .eq('preset_id', presetId)
+      
+      if (error) throw error
+      
+      return count || 0
+    } catch (error) {
+      console.error('❌ Failed to get template count:', error)
+      return 0
+    }
+  },
+
+  // Migrate templates from localStorage to database
+  async migrateFromLocalStorage(presetId, userId) {
+    try {
+      const storageKey = `etendy_templates_preset_${presetId}`
+      const localTemplates = JSON.parse(localStorage.getItem(storageKey) || '[]')
+      
+      if (localTemplates.length === 0) {
+        console.log('ℹ️ No templates to migrate from localStorage')
+        return { migrated: 0, skipped: 0 }
+      }
+
+      console.log(`🔄 Migrating ${localTemplates.length} templates from localStorage...`)
+      
+      let migrated = 0
+      let skipped = 0
+
+      for (const template of localTemplates) {
+        try {
+          await this.saveTemplate(
+            presetId,
+            userId,
+            template.name,
+            template.template_data,
+            template.thumbnail
+          )
+          migrated++
+        } catch (error) {
+          console.warn(`⚠️ Skipped template "${template.name}":`, error.message)
+          skipped++
+        }
+      }
+
+      console.log(`✅ Migration complete: ${migrated} migrated, ${skipped} skipped`)
+      
+      // Optionally clear localStorage after successful migration
+      if (migrated > 0) {
+        console.log('🧹 Clearing localStorage templates after migration')
+        localStorage.removeItem(storageKey)
+      }
+
+      return { migrated, skipped }
+    } catch (error) {
+      console.error('❌ Failed to migrate templates:', error)
+      throw error
+    }
+  }
+}
