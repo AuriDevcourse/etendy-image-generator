@@ -121,7 +121,7 @@ const InlineCropInterface = ({ photo, cropValues, onCropChange, onCropEnd }) => 
         
         {/* Crop area */}
         <div
-          className="absolute border-2 border-blue-500 bg-transparent cursor-move"
+          className="absolute border-2 border-orange-500 bg-transparent cursor-move"
           style={{
             left: `${cropValues.x}%`,
             top: `${cropValues.y}%`,
@@ -383,7 +383,7 @@ export default function Step2Image({
               {images.map(image => (
                 <div 
                   key={image.id} 
-                  className={`p-3 rounded-lg transition-all duration-200 cursor-pointer flex items-center gap-3 ${selectedElementIds && selectedElementIds.includes(image.id) ? 'bg-white/10 ring-2 ring-indigo-400' : 'bg-white/5 hover:bg-white/10'}`}
+                  className={`p-3 rounded-lg transition-all duration-200 cursor-pointer flex items-center gap-3 ${selectedElementIds && selectedElementIds.includes(image.id) ? 'bg-white/10 ring-2 ring-orange-400' : 'bg-white/5 hover:bg-white/10'}`}
                   onClick={() => setSelectedElementIds([image.id])}
                 >
                   <div className="w-12 h-12 rounded-lg overflow-hidden bg-white/10 flex-shrink-0">
@@ -418,7 +418,7 @@ export default function Step2Image({
                       <Button 
                         onClick={() => setIsCropping(!isCropping)} 
                         variant="outline" 
-                        className={`w-full text-white border-white/20 hover:text-white ${isCropping ? 'bg-blue-500/20 border-blue-500/40' : 'bg-white/5'} hover:bg-white/10`}
+                        className={`w-full text-white border-white/20 hover:text-white ${isCropping ? 'bg-orange-500/20 border-orange-500/40' : 'bg-white/5'} hover:bg-white/10`}
                       >
                         <Crop className="w-4 h-4 mr-2 text-white"/>
                         {isCropping ? 'Done Cropping' : 'Crop Image'}

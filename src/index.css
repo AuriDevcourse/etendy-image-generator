@@ -156,3 +156,113 @@ button:focus-visible {
     @apply bg-background text-foreground;
   }
 }
+
+/* Animated wavy scribble - drawing effect with pause */
+@keyframes scribble-draw {
+  0% {
+    stroke-dashoffset: 7000;
+    opacity: 0;
+  }
+  2% {
+    opacity: 0.5;
+  }
+  60% {
+    stroke-dashoffset: 0;
+    opacity: 0.5;
+  }
+  65% {
+    stroke-dashoffset: 0;
+    opacity: 0.4;
+  }
+  70% {
+    stroke-dashoffset: 0;
+    opacity: 0.2;
+  }
+  75% {
+    stroke-dashoffset: 0;
+    opacity: 0;
+  }
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 0;
+  }
+}
+
+.scribble-svg {
+  filter: blur(2px);
+}
+
+.scribble-path {
+  stroke-dasharray: 7000;
+  stroke-dashoffset: 7000;
+  animation: scribble-draw 14s ease-in-out infinite;
+}
+
+/* Horizontal scrolling gallery animation */
+@keyframes scroll-horizontal {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.horizontal-scroll-container {
+  animation: scroll-horizontal 60s linear infinite;
+  will-change: transform;
+}
+
+.gradient-card {
+  position: relative;
+  width: 25vw;
+  aspect-ratio: 1 / 1;
+  border-radius: 24px;
+  overflow: hidden;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+/* Page transition overlay */
+.page-transition-overlay {
+  position: fixed;
+  inset: 0;
+  background: black;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+/* Global hover dimming effect - 20% opacity reduction */
+.hover-dim {
+  transition: opacity 0.2s ease;
+}
+
+.hover-dim:hover {
+  opacity: 0.8;
+}
+
+/* Global scrollbar styling - consistent across all scrollable areas */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) rgba(255, 255, 255, 0.05);
+}
+
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+  transition: background 0.2s ease;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}

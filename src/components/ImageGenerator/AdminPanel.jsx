@@ -11,11 +11,11 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileUploadArea } from './FileUploadArea';
 
 const FONT_FAMILIES = [
-  "Archivo Expanded",
-  "DM Serif Text",
-  "Playfair Display",
-  "Inter",
-  "Archivo"
+  "BBH Sans Bogle",
+  "Poppins",
+  "DM Sans",
+  "Archivo",
+  "Host Grotesk"
 ];
 
 const LockedBackgroundSettings = ({ settings, onSettingChange, section }) => {
@@ -334,7 +334,7 @@ const LockedPageBackgroundSettings = ({ settings, onSettingChange, section }) =>
 };
 
 
-export default function AdminPanel({ settings, onSettingChange, onSave, isSaving, hasUnsavedChanges, showSavedMessage }) {
+export default function AdminPanel({ settings, onSettingChange, onSave, isSaving, hasUnsavedChanges, showSavedMessage, adminUser }) {
   const handleNestedChange = (section, key, value) => {
     onSettingChange({
       ...settings,
@@ -637,13 +637,15 @@ export default function AdminPanel({ settings, onSettingChange, onSave, isSaving
           {/* Preset Management Button */}
           <Button
             onClick={() => {
-              // Open the old admin dashboard in a new tab for preset management
-              window.open('/admin', '_blank');
+              // Navigate to unified presets page
+              if (adminUser?.id) {
+                window.location.href = `/presets/${adminUser.id}`;
+              }
             }}
-            className="w-full py-3 text-white bg-purple-500 hover:bg-purple-600 transition-all flex items-center justify-center gap-2"
+            className="w-full py-3 text-white bg-orange-500/20 border border-orange-500/30 hover:bg-orange-500/30 transition-all flex items-center justify-center gap-2 text-orange-300"
           >
             <Database className="w-4 h-4" />
-            Manage Presets
+            My Presets
           </Button>
 
           {/* Save Settings Button */}

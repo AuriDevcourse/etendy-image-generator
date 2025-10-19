@@ -4,7 +4,7 @@ import { GeneratedImage } from "@/api/entities";
 import { Template } from "@/api/entities";
 import { User } from "@/api/entities"; // Assuming User entity exists for role checking
 import { AdminSettings } from '@/api/entities'; // Import AdminSettings
-import { presetService, authService, userService, adminSettingsService } from '../lib/supabase';
+import { supabase, presetService, authService, userService, adminSettingsService } from '../lib/supabase';
 
 import CanvasPreview from '../components/ImageGenerator/CanvasPreview';
 import Step1Background from '../components/ImageGenerator/steps/Step1_Background';
@@ -18,8 +18,14 @@ import ColorPicker from '../components/ImageGenerator/ColorPicker';
 import Gallery from '../components/ImageGenerator/Gallery';
 import AdminPanel from '../components/ImageGenerator/AdminPanel'; // Import AdminPanel
 import UserProfile from '../components/UserProfile/UserProfile';
+import TooltipTour from '../components/ImageGenerator/TooltipTour';
+import KeyboardShortcutsHelp from '../components/ImageGenerator/KeyboardShortcutsHelp';
+import QuickTooltips from '../components/ImageGenerator/QuickTooltips';
+import Notification from '../components/Notification';
 import { Button } from '@/components/ui/button';
-import { Palette, X, CheckCircle, ChevronLeft, ChevronRight, Heart, Layers, Save, Settings, Image as ImageIcon, Type, Shapes, Download, Monitor, User as UserIcon, LogOut } from 'lucide-react';
+import { Palette, X, CheckCircle, ChevronLeft, ChevronRight, Heart, Layers, Save, Settings, Image as ImageIcon, Type, Shapes, Download, Monitor, User as UserIcon, LogOut, Home, Grid } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import sattendWhiteLogo from '../assets/sattend-white.png';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 const DEFAULT_ADMIN_SETTINGS = {
@@ -38,7 +44,7 @@ const DEFAULT_ADMIN_SETTINGS = {
       gradientColor1: '#6366f1',
       gradientColor2: '#8b5cf6',
       gradientAngle: 135,
-      backgroundColor: '#1e1b4b',
+      backgroundColor: '#211c1a',
       backgroundImage: null,
       backgroundImageScale: 1.0, // Added default for locked background
       backgroundImageX: 0, // Added default for locked background
@@ -98,11 +104,44 @@ const DEFAULT_ADMIN_SETTINGS = {
 };
 
 export default function ImageGeneratorPage() {
+  const navigate = useNavigate();
+  
   // Debug: Confirm latest code is loaded
-  console.log('🚀🚀🚀 LATEST CODE LOADED - Update #23 - Console Debug Test 🚀🚀🚀');
+  console.log('🚀🚀🚀 LATEST CODE LOADED - Update #28 - UX Improvements & Undo/Redo Fix 🚀🚀🚀');
   console.log('If you see this message, the latest code is running!');
-  console.log('🎯 Admin panel debugging is active!');
-  console.log('📍 Look for console messages when clicking admin panel buttons!');
+  console.log('✅ Undo/Redo system fixed - one action per step');
+  console.log('🎨 Grid overlay toggle added');
+  console.log('🔗 Group/Ungroup functionality (Ctrl+G / Ctrl+Shift+G)');
+  console.log('💬 Notification system implemented');
+  console.log('⚠️ Background drag warning after 3 attempts');
+  console.log('📝 Text editing workflow improved');
+
+  // Custom scrollbar styles matching admin panel
+  React.useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = `
+      .panel-scroll::-webkit-scrollbar {
+        width: 6px;
+      }
+      .panel-scroll::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 3px;
+      }
+      .panel-scroll::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 3px;
+      }
+      .panel-scroll::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.3);
+      }
+      .panel-scroll {
+        scrollbar-width: thin;
+        scrollbar-color: rgba(255, 255, 255, 0.2) rgba(255, 255, 255, 0.05);
+      }
+    `;
+    document.head.appendChild(style);
+    return () => document.head.removeChild(style);
+  }, []);
 
   // Test console immediately
   console.log('🔍 CONSOLE TEST: If you see this, the console is working!');
@@ -110,8 +149,9 @@ export default function ImageGeneratorPage() {
   // NEW: Control Panel State (replaces old wizard state)
   const [activeControlPanel, setActiveControlPanel] = useState('background');
 
-  // History State for Undo
+  // History State for Undo/Redo
   const [history, setHistory] = useState([]);
+  const [redoHistory, setRedoHistory] = useState([]);
   const MAX_HISTORY_LENGTH = 30;
 
   // --- REFACTORED STATE ---
@@ -125,7 +165,7 @@ export default function ImageGeneratorPage() {
   const [gradientColor1, setGradientColor1] = useState('#6366f1');
   const [gradientColor2, setGradientColor2] = useState('#8b5cf6');
   const [gradientAngle, setGradientAngle] = useState(135);
-  const [backgroundColor, setBackgroundColor] = useState('#1e1b4b');
+  const [backgroundColor, setBackgroundColor] = useState('#211c1a');
   const [backgroundImage, setBackgroundImage] = useState(null);
   const [backgroundImageNaturalDimensions, setBackgroundImageNaturalDimensions] = useState({ width: 0, height: 0 });
   const [backgroundImageScale, setBackgroundImageScale] = useState(1.0);
@@ -144,8 +184,8 @@ export default function ImageGeneratorPage() {
 
   // Page Background State (for the entire app page)
   const [pageBackgroundType, setPageBackgroundType] = useState('gradient');
-  const [pageGradientColor1, setPageGradientColor1] = useState('#7c3aed');
-  const [pageGradientColor2, setPageGradientColor2] = useState('#1e40af');
+  const [pageGradientColor1, setPageGradientColor1] = useState('#2a1f1a');
+  const [pageGradientColor2, setPageGradientColor2] = useState('#000000');
   const [pageBackgroundColor, setPageBackgroundColor] = useState('#1e1b4b');
   const [pageBackgroundImage, setPageBackgroundImage] = useState(null); // No default image
   const [pageBackgroundScale, setPageBackgroundScale] = useState(1.0);
@@ -158,6 +198,11 @@ export default function ImageGeneratorPage() {
   const [showGalleryDot, setShowGalleryDot] = useState(true);
   const [showLayersPanel, setShowLayersPanel] = useState(false);
   const [showTemplatesPanel, setShowTemplatesPanel] = useState(false);
+  
+  // Notification and UX states
+  const [notification, setNotification] = useState(null);
+  const [backgroundDragAttempts, setBackgroundDragAttempts] = useState(0);
+  const [showGrid, setShowGrid] = useState(false);
   
   // Canvas and UI State
   const [canvasWidth, setCanvasWidth] = useState(1500);
@@ -176,6 +221,7 @@ export default function ImageGeneratorPage() {
   const [saveErrorMessage, setSaveErrorMessage] = useState('');
   const [isLoadingGallery, setIsLoadingGallery] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
+  const [isPageLoading, setIsPageLoading] = useState(true); // Initial page load
 
   // Preset State
   const [currentPreset, setCurrentPreset] = useState(null);
@@ -207,6 +253,9 @@ export default function ImageGeneratorPage() {
   const [showUserProfile, setShowUserProfile] = useState(false);
   const [userPreferences, setUserPreferences] = useState(null);
   const [regularUser, setRegularUser] = useState(null); // For non-admin users
+  
+  // Tooltip tour state
+  const [showTooltipTour, setShowTooltipTour] = useState(false);
   
   // Admin code - you can change this to whatever you want
   const ADMIN_CODE = 'admin123';
@@ -323,6 +372,9 @@ export default function ImageGeneratorPage() {
       const newHistory = [currentState, ...prev.slice(0, MAX_HISTORY_LENGTH - 1)];
       return newHistory;
     });
+    
+    // Clear redo history when new changes are made
+    setRedoHistory([]);
   }, [elements, backgroundType, gradientColor1, gradientColor2, gradientAngle, backgroundColor, backgroundImage, backgroundImageScale, backgroundImageX, backgroundImageY, overlayType, overlayColor, overlayOpacity, overlayGradientColor1, overlayGradientOpacity1, overlayGradientColor2, overlayGradientOpacity2, overlayGradientAngle, canvasWidth, canvasHeight]);
 
   const gatherStateSnapshot = useCallback(() => {
@@ -515,7 +567,7 @@ export default function ImageGeneratorPage() {
       setGradientColor1('#6366f1');
       setGradientColor2('#8b5cf6');
       setGradientAngle(135);
-      setBackgroundColor('#1e1b4b');
+      setBackgroundColor('#211c1a');
       setBackgroundImage(null);
       setBackgroundImageNaturalDimensions({ width: 0, height: 0 });
       setBackgroundImageScale(1.0);
@@ -909,11 +961,6 @@ export default function ImageGeneratorPage() {
       setSelectedElementIds([]);
       return;
     }
-    
-    // Only push to history if the selection is actually changing, or if selecting a new element
-    if (!selectedElementIds.includes(elementId)) {
-        pushToHistory();
-    }
 
     const element = elements.find(el => el.id === elementId);
     if (!element) return;
@@ -928,7 +975,7 @@ export default function ImageGeneratorPage() {
     } else if (element.type === 'logo' || element.type === 'shape') {
       setActiveControlPanel('elements');
     }
-  }, [elements, pushToHistory, selectedElementIds, setActiveControlPanel]);
+  }, [elements, selectedElementIds, setActiveControlPanel]);
 
   // Add keydown listener for deleting elements (now AFTER removeElement is defined)
   useEffect(() => {
@@ -976,14 +1023,85 @@ export default function ImageGeneratorPage() {
   
   const handleUndo = useCallback(() => {
     if (history.length === 0) return;
-    const lastState = history[history.length - 1];
-    restoreState(lastState);
-    setHistory(prev => prev.slice(0, -1));
-  }, [history]);
+    
+    // Save current state to redo history before undoing
+    const currentState = {
+      elements,
+      backgroundType,
+      gradientColor1,
+      gradientColor2,
+      gradientAngle,
+      backgroundColor,
+      backgroundImage,
+      backgroundImageScale,
+      backgroundImageX,
+      backgroundImageY,
+      overlayType,
+      overlayColor,
+      overlayOpacity,
+      overlayGradientColor1,
+      overlayGradientOpacity1,
+      overlayGradientColor2,
+      overlayGradientOpacity2,
+      overlayGradientAngle,
+      canvasWidth,
+      canvasHeight
+    };
+    
+    setRedoHistory(prev => [currentState, ...prev.slice(0, MAX_HISTORY_LENGTH - 1)]);
+    
+    // Get the most recent state (index 0, not last index)
+    const previousState = history[0];
+    restoreState(previousState);
+    setHistory(prev => prev.slice(1)); // Remove first item
+  }, [history, elements, backgroundType, gradientColor1, gradientColor2, gradientAngle, backgroundColor, backgroundImage, backgroundImageScale, backgroundImageX, backgroundImageY, overlayType, overlayColor, overlayOpacity, overlayGradientColor1, overlayGradientOpacity1, overlayGradientColor2, overlayGradientOpacity2, overlayGradientAngle, canvasWidth, canvasHeight]);
+
+  const handleRedo = useCallback(() => {
+    if (redoHistory.length === 0) return;
+    
+    // Save current state to undo history before redoing
+    const currentState = {
+      elements,
+      backgroundType,
+      gradientColor1,
+      gradientColor2,
+      gradientAngle,
+      backgroundColor,
+      backgroundImage,
+      backgroundImageScale,
+      backgroundImageX,
+      backgroundImageY,
+      overlayType,
+      overlayColor,
+      overlayOpacity,
+      overlayGradientColor1,
+      overlayGradientOpacity1,
+      overlayGradientColor2,
+      overlayGradientOpacity2,
+      overlayGradientAngle,
+      canvasWidth,
+      canvasHeight
+    };
+    
+    setHistory(prev => [currentState, ...prev.slice(0, MAX_HISTORY_LENGTH - 1)]);
+    
+    // Get the most recent redo state (index 0)
+    const nextState = redoHistory[0];
+    restoreState(nextState);
+    setRedoHistory(prev => prev.slice(1)); // Remove first item
+  }, [redoHistory, elements, backgroundType, gradientColor1, gradientColor2, gradientAngle, backgroundColor, backgroundImage, backgroundImageScale, backgroundImageX, backgroundImageY, overlayType, overlayColor, overlayOpacity, overlayGradientColor1, overlayGradientOpacity1, overlayGradientColor2, overlayGradientOpacity2, overlayGradientAngle, canvasWidth, canvasHeight]);
+
+  // Show notification helper
+  const showNotification = useCallback((message, type = 'info') => {
+    setNotification({ message, type });
+  }, []);
 
   // Group selected elements together
   const handleGroupElements = useCallback(() => {
-    if (selectedElementIds.length < 2) return;
+    if (selectedElementIds.length < 2) {
+      showNotification('Select at least 2 elements to group', 'info');
+      return;
+    }
     
     pushToHistory(); // Save state before grouping
     
@@ -999,8 +1117,35 @@ export default function ImageGeneratorPage() {
       )
     );
     
+    showNotification(`Grouped ${selectedElementIds.length} elements`, 'success');
     console.log(`✅ Grouped ${selectedElementIds.length} elements with ID: ${groupId}`);
-  }, [selectedElementIds, pushToHistory]);
+  }, [selectedElementIds, pushToHistory, showNotification]);
+
+  // Ungroup selected elements
+  const handleUngroupElements = useCallback(() => {
+    // Find if any selected element is in a group
+    const selectedElements = elements.filter(el => selectedElementIds.includes(el.id));
+    const hasGroupedElements = selectedElements.some(el => el.groupId);
+    
+    if (!hasGroupedElements) {
+      showNotification('No grouped elements selected', 'info');
+      return;
+    }
+    
+    pushToHistory(); // Save state before ungrouping
+    
+    // Remove groupId from all selected elements
+    setElements(prevElements => 
+      prevElements.map(el => 
+        selectedElementIds.includes(el.id) && el.groupId
+          ? { ...el, groupId: undefined } 
+          : el
+      )
+    );
+    
+    showNotification('Elements ungrouped', 'success');
+    console.log(`✅ Ungrouped ${selectedElements.length} elements`);
+  }, [elements, selectedElementIds, pushToHistory, showNotification]);
 
   // Track Ctrl key for multi-select and shortcuts (placed after handleUndo and handleGroupElements are defined)
   useEffect(() => {
@@ -1015,11 +1160,25 @@ export default function ImageGeneratorPage() {
         }
       }
       
-      // Ctrl+G for grouping
-      if ((e.ctrlKey || e.metaKey) && e.key === 'g') {
+      // Ctrl+Shift+Z for redo
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'z' || e.key === 'Z')) {
         e.preventDefault();
-        if (selectedElementIds.length > 1) {
-          handleGroupElements();
+        if (redoHistory.length > 0 && adminSettings?.generalControls?.undoEnabled !== false) {
+          handleRedo();
+        }
+      }
+      
+      // Ctrl+G for grouping / Ctrl+Shift+G for ungrouping
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'g' || e.key === 'G')) {
+        e.preventDefault();
+        if (e.shiftKey) {
+          // Ctrl+Shift+G for ungroup
+          handleUngroupElements();
+        } else {
+          // Ctrl+G for group
+          if (selectedElementIds.length > 1) {
+            handleGroupElements();
+          }
         }
       }
     };
@@ -1035,7 +1194,7 @@ export default function ImageGeneratorPage() {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [history, adminSettings, selectedElementIds, handleUndo, handleGroupElements]);
+  }, [history, redoHistory, adminSettings, selectedElementIds, handleUndo, handleRedo, handleGroupElements, handleUngroupElements]);
 
   const handleCanvasReset = useCallback(() => {
     if (window.confirm("Are you sure you want to reset the canvas? This will clear all text, images, and background settings.")) {
@@ -1186,7 +1345,12 @@ export default function ImageGeneratorPage() {
               setShowCanvasBackgroundOverlay(false); // Hide overlay since preset is loaded
             }
             
-            setCurrentPreset({ id: presetId, name: preset.name });
+            setCurrentPreset({ 
+              id: presetId, 
+              name: preset.name,
+              user_id: preset.user_id,
+              admin_email: preset.admin_email
+            });
           }
         } catch (error) {
           console.error('❌ Failed to load preset:', error);
@@ -1203,6 +1367,7 @@ export default function ImageGeneratorPage() {
   useEffect(() => {
     const checkUserAuth = async () => {
       setIsCheckingAdmin(true);
+      setIsPageLoading(true); // Start page loading
       try {
         const user = await authService.getCurrentUser();
         if (user && user.email) {
@@ -1232,6 +1397,15 @@ export default function ImageGeneratorPage() {
         console.error('❌ User auth check failed:', error);
       } finally {
         setIsCheckingAdmin(false);
+        // End page loading after a short delay to ensure everything is rendered
+        setTimeout(() => {
+          setIsPageLoading(false);
+          // Check if user has completed the tour
+          const tourCompleted = localStorage.getItem('etendy_tour_completed');
+          if (!tourCompleted) {
+            setShowTooltipTour(true);
+          }
+        }, 500);
       }
     };
 
@@ -1353,8 +1527,8 @@ export default function ImageGeneratorPage() {
         pageBackgroundX,
         pageBackgroundY,
         
-        // All elements (text, images, shapes, etc.)
-        elements: JSON.parse(JSON.stringify(elements)), // Deep copy
+        // All elements (text, shapes, etc.) - EXCLUDE images to save space
+        elements: JSON.parse(JSON.stringify(elements.filter(el => el.type !== 'image'))), // Deep copy without images
         
         // UI state
         showCanvasBackgroundOverlay,
@@ -1368,8 +1542,20 @@ export default function ImageGeneratorPage() {
 
       console.log('💾 Saving complete preset state:', currentSettings);
 
-      // Update the existing preset
-      await presetService.updatePreset(currentPreset.id, currentSettings);
+      // Determine the user ID for ownership verification
+      // If the preset has a user_id, use that for verification
+      // If it has an admin_email instead, don't verify (admin preset)
+      const userId = currentPreset.user_id || null;
+      
+      console.log('🔐 Updating preset with user verification:', {
+        presetId: currentPreset.id,
+        userId: userId,
+        isUserPreset: !!currentPreset.user_id,
+        isAdminPreset: !!currentPreset.admin_email
+      });
+
+      // Update the existing preset with user ownership verification
+      await presetService.updatePreset(currentPreset.id, currentSettings, userId);
       
       alert(`Preset "${currentPreset.name}" updated successfully!`);
     } catch (error) {
@@ -1669,7 +1855,9 @@ export default function ImageGeneratorPage() {
         ctx.textBaseline = 'top';
         ctx.textAlign = el.textAlign || 'left'; // Use element's text alignment
 
-        const transformedText = applyTextTransform(el.content, el.transform);
+        // Safety check: ensure content exists
+        const textContent = el.content || el.text || 'Text';
+        const transformedText = applyTextTransform(textContent, el.transform);
         const textLines = transformedText.split('\n');
         const lineHeight = el.size * (el.lineHeight || 1.2); // Use element's line height
         
@@ -1707,15 +1895,25 @@ export default function ImageGeneratorPage() {
             ctx.translate(-(x + width / 2), -(y + height / 2));
           }
           
+          // Safety check: ensure colors exist
+          const safeColor1 = color1 || '#000000';
+          const safeColor2 = color2 || color1 || '#FFFFFF';
+          
           if (colorType === 'gradient') {
-              const gradient = ctx.createLinearGradient(x, y, x + width, y + height);
-              gradient.addColorStop(0, color1);
-              gradient.addColorStop(1, color2);
-              ctx.fillStyle = gradient;
-              ctx.strokeStyle = gradient;
+              try {
+                const gradient = ctx.createLinearGradient(x, y, x + width, y + height);
+                gradient.addColorStop(0, safeColor1);
+                gradient.addColorStop(1, safeColor2);
+                ctx.fillStyle = gradient;
+                ctx.strokeStyle = gradient;
+              } catch (gradientError) {
+                console.warn('Gradient creation failed, using solid color:', gradientError);
+                ctx.fillStyle = safeColor1;
+                ctx.strokeStyle = safeColor1;
+              }
           } else {
-              ctx.fillStyle = color1;
-              ctx.strokeStyle = color1;
+              ctx.fillStyle = safeColor1;
+              ctx.strokeStyle = safeColor1;
           }
 
           if (shapeType === 'rectangle') {
@@ -1801,14 +1999,14 @@ export default function ImageGeneratorPage() {
     console.log('🔍 Parsed existing templates for this preset:', existingTemplates.map(t => ({ name: t.name, id: t.id })));
     
     // Add global functions for debugging
-    window.clearEtendyStorage = () => {
+    window.clearSattendStorage = () => {
       localStorage.removeItem('etendy_templates');
       localStorage.removeItem('etendy_gallery');
       localStorage.removeItem('etendy_admin_settings');
-      console.log('🧹 Cleared all Etendy localStorage data');
+      console.log('🧹 Cleared all Sattend localStorage data');
     };
     
-    window.checkEtendyTemplates = () => {
+    window.checkSattendTemplates = () => {
       const storageKey = currentPreset?.id 
         ? `etendy_templates_preset_${currentPreset.id}` 
         : 'etendy_templates';
@@ -1850,28 +2048,57 @@ export default function ImageGeneratorPage() {
       console.log('📐 Canvas dimensions:', { width: canvasWidth, height: canvasHeight });
       console.log('📦 Elements to save:', elements.length);
       
+      let dataUrl = null;
       try {
-        await drawFinalImage(ctx);
+        // Add timeout to prevent hanging (10 seconds)
+        const drawPromise = drawFinalImage(ctx);
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Thumbnail generation timeout')), 10000)
+        );
+        
+        await Promise.race([drawPromise, timeoutPromise]);
         console.log('✅ drawFinalImage completed successfully');
+        
+        // Create a very small thumbnail canvas for minimal storage usage
+        const thumbnailCanvas = document.createElement('canvas');
+        thumbnailCanvas.width = 50; // Even smaller for storage efficiency
+        thumbnailCanvas.height = 50;
+        const thumbnailCtx = thumbnailCanvas.getContext('2d');
+        
+        // Draw the full canvas scaled down to thumbnail size
+        thumbnailCtx.drawImage(exportCanvas, 0, 0, canvasWidth, canvasHeight, 0, 0, 50, 50);
+        
+        // Use very low quality for tiny file size
+        dataUrl = thumbnailCanvas.toDataURL('image/jpeg', 0.05); // Even lower quality
+        console.log('📸 Small thumbnail generated successfully, length:', dataUrl.length);
       } catch (drawError) {
-        console.error('❌ Error in drawFinalImage:', drawError);
-        throw new Error(`Failed to generate thumbnail: ${drawError.message}`);
+        console.warn('⚠️ Thumbnail generation failed or timed out, creating simple preview:', drawError);
+        // Create a simple preview showing canvas background color/gradient
+        try {
+          const simpleCanvas = document.createElement('canvas');
+          simpleCanvas.width = 50;
+          simpleCanvas.height = 50;
+          const simpleCtx = simpleCanvas.getContext('2d');
+          
+          // Draw background based on type
+          if (backgroundType === 'gradient') {
+            const gradient = simpleCtx.createLinearGradient(0, 0, 50, 50);
+            gradient.addColorStop(0, gradientColor1);
+            gradient.addColorStop(1, gradientColor2);
+            simpleCtx.fillStyle = gradient;
+          } else {
+            simpleCtx.fillStyle = backgroundColor;
+          }
+          simpleCtx.fillRect(0, 0, 50, 50);
+          
+          dataUrl = simpleCanvas.toDataURL('image/jpeg', 0.3);
+        } catch (fallbackError) {
+          // Ultimate fallback - gray square
+          dataUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mM8w8DwHwAEOQHCb6aP0AAAAABJRU5ErkJggg==';
+        }
       }
-      
-      // Create a very small thumbnail canvas for minimal storage usage
-      const thumbnailCanvas = document.createElement('canvas');
-      thumbnailCanvas.width = 100; // Very small thumbnail for maximum storage efficiency
-      thumbnailCanvas.height = 100;
-      const thumbnailCtx = thumbnailCanvas.getContext('2d');
-      
-      // Draw the full canvas scaled down to thumbnail size
-      thumbnailCtx.drawImage(exportCanvas, 0, 0, canvasWidth, canvasHeight, 0, 0, 100, 100);
-      
-      // Use very low quality for tiny file size
-      const dataUrl = thumbnailCanvas.toDataURL('image/jpeg', 0.1); // Extremely low quality for minimal size
-      console.log('📸 Small thumbnail generated successfully, length:', dataUrl.length);
 
-      // Include all template data including background image
+      // Include template data WITHOUT background image (too large for localStorage)
       const templateData = {
         elements: JSON.parse(JSON.stringify(elements)),
         canvasWidth,
@@ -1881,8 +2108,8 @@ export default function ImageGeneratorPage() {
         gradientColor2, 
         gradientAngle, 
         backgroundColor,
-        // Include backgroundImage so it's saved with the template
-        backgroundImage: backgroundImage,
+        // EXCLUDE backgroundImage to save storage space
+        // backgroundImage: backgroundImage, // Too large!
         backgroundImageNaturalDimensions: backgroundImageNaturalDimensions,
         backgroundImageScale, 
         backgroundImageX, 
@@ -1899,7 +2126,7 @@ export default function ImageGeneratorPage() {
       
       console.log('💾 Template data size optimization:', {
         hasBackgroundImage: !!backgroundImage,
-        backgroundImageExcluded: backgroundImage ? true : false,
+        backgroundImageExcluded: true, // Always excluded to save space
         elementsCount: elements.length
       });
       
@@ -2032,9 +2259,14 @@ export default function ImageGeneratorPage() {
     } catch (error) {
       console.warn('Failed to delete template via API. Deleting from localStorage instead:', error);
       try {
-        const local = JSON.parse(localStorage.getItem('etendy_templates') || '[]');
+        // Use preset-specific storage key
+        const storageKey = currentPreset?.id 
+          ? `etendy_templates_preset_${currentPreset.id}` 
+          : 'etendy_templates';
+        
+        const local = JSON.parse(localStorage.getItem(storageKey) || '[]');
         const updated = local.filter(t => t.id !== templateId);
-        localStorage.setItem('etendy_templates', JSON.stringify(updated));
+        localStorage.setItem(storageKey, JSON.stringify(updated));
         setTemplates(updated);
       } catch (lsErr) {
         console.error('Failed to delete template locally:', lsErr);
@@ -2043,7 +2275,7 @@ export default function ImageGeneratorPage() {
         setTimeout(() => setShowSaveError(false), 5000);
       }
     }
-  }, [loadTemplates, currentUser]);
+  }, [loadTemplates, currentUser, currentPreset]);
 
   const handleSetDefaultTemplate = useCallback(async (templateId) => {
     if (!currentUser) return;
@@ -2058,107 +2290,109 @@ export default function ImageGeneratorPage() {
   }, [currentUser]);
 
   const handleSaveCurrentAsMyPreset = useCallback(async () => {
-    if (!currentUser) return;
+    if (!regularUser) return;
     
     const presetName = prompt("Enter a name for your preset:");
     if (!presetName || !presetName.trim()) return;
     
     setIsSavingTemplate(true); // Re-use the template saving spinner
     try {
-      // Create thumbnail
-      const exportCanvas = document.createElement('canvas');
-      exportCanvas.width = canvasWidth;
-      exportCanvas.height = canvasHeight;
-      const ctx = exportCanvas.getContext('2d');
-      await drawFinalImage(ctx);
-      
-      const blob = await new Promise(resolve => exportCanvas.toBlob(resolve, 'image/jpeg', 0.6));
-      if (!blob) {
-        throw new Error("Failed to create thumbnail.");
-      }
-
-      const timestamp = Date.now();
-      const file = new File([blob], `preset-${timestamp}.jpg`, { type: 'image/jpeg' });
-
-      // Add timeout and retry logic
-      let uploadResult;
-      let attempts = 0;
-      const maxAttempts = 3;
-      
-      while (attempts < maxAttempts) {
-        try {
-          attempts++;
-          const uploadPromise = UploadFile({ file });
-          const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Upload timeout')), 30000)
-          );
-          uploadResult = await Promise.race([uploadPromise, timeoutPromise]);
-          break;
-        } catch (error) {
-          console.log(`Preset upload attempt ${attempts} failed:`, error.message);
-          if (attempts === maxAttempts) {
-            throw new Error(`Preset upload failed. ${error.message.includes('timeout') || error.message.includes('DatabaseTimeout') ? 'The server is busy. Please try again.' : error.message}`);
-          }
-          await new Promise(resolve => setTimeout(resolve, 2000 * attempts));
-        }
-      }
-
-      if (!uploadResult || !uploadResult.file_url) {
-        throw new Error("Failed to get file URL from upload.");
-      }
-
-      // Save template data
-      const templateData = {
-        elements: JSON.parse(JSON.stringify(elements)),
+      // Capture complete current state
+      const currentSettings = {
+        // Background settings
+        backgroundType,
+        gradientColor1,
+        gradientColor2,
+        gradientAngle,
+        backgroundColor,
+        backgroundImage,
+        backgroundImageScale,
+        backgroundImageX,
+        backgroundImageY,
+        backgroundImageNaturalDimensions,
+        
+        // Overlay settings
+        overlayType,
+        overlayColor,
+        overlayOpacity,
+        overlayGradientColor1,
+        overlayGradientOpacity1,
+        overlayGradientColor2,
+        overlayGradientOpacity2,
+        overlayGradientAngle,
+        
+        // Canvas settings
         canvasWidth,
         canvasHeight,
-        backgroundType, gradientColor1, gradientColor2, gradientAngle, backgroundColor,
-        backgroundImage, backgroundImageScale, backgroundImageX, backgroundImageY,
-        overlayType, overlayColor, overlayOpacity, overlayGradientColor1,
-        overlayGradientOpacity1, overlayGradientColor2, overlayGradientOpacity2,
-        overlayGradientAngle,
+        
+        // Page background settings
+        pageBackgroundType,
+        pageGradientColor1,
+        pageGradientColor2,
+        pageBackgroundColor,
+        pageBackgroundImage,
+        pageBackgroundScale,
+        pageBackgroundX,
+        pageBackgroundY,
+        
+        // All elements (text, shapes, etc.) - EXCLUDE images to save space
+        elements: JSON.parse(JSON.stringify(elements.filter(el => el.type !== 'image'))),
+        
+        // UI state
+        showCanvasBackgroundOverlay,
+        
+        // Timestamp for tracking
+        lastUpdated: new Date().toISOString(),
+        
+        // Version for future compatibility
+        version: '1.0'
       };
 
-      // Create the template with retry logic
-      let newTemplate;
-      attempts = 0;
-      while (attempts < maxAttempts) {
-        try {
-          attempts++;
-          newTemplate = await Template.create({
-            name: presetName.trim(),
-            thumbnail_url: uploadResult.file_url,
-            template_data: templateData
-          });
-          break;
-        } catch (error) {
-          console.log(`Preset save attempt ${attempts} failed:`, error.message);
-          if (attempts === maxAttempts) {
-            throw new Error(`Preset save failed. ${error.message.includes('DatabaseTimeout') ? 'The database is busy. Please try again.' : error.message}`);
-          }
-          await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
-        }
+      console.log('💾 Creating new preset:', presetName.trim());
+      console.log('👤 User ID:', regularUser.id);
+      console.log('📋 Settings to save:', currentSettings);
+
+      // Create new preset using Supabase
+      const { data, error } = await supabase
+        .from('presets')
+        .insert([{
+          name: presetName.trim(),
+          settings: currentSettings,
+          user_id: regularUser.id,
+          admin_email: null, // Regular user preset
+          is_active: true
+        }])
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('❌ Supabase error:', error);
+        throw error;
       }
-
-      if (!newTemplate) {
-        throw new Error("Failed to create the template record after multiple attempts.");
-      }
-
-      // Set this template as the user's default
-      await User.updateMyUserData({ default_template_id: newTemplate.id });
-      setCurrentUser(prev => ({...prev, default_template_id: newTemplate.id }));
-
-      await loadTemplates();
-      alert("Preset saved and set as your default!");
+      
+      console.log('✅ Preset created successfully:', data);
+      
+      // Update current preset state to enable edit mode
+      setCurrentPreset({
+        id: data.id,
+        name: data.name,
+        user_id: data.user_id,
+        admin_email: data.admin_email
+      });
+      setIsEditMode(true);
+      
+      // Update URL to reflect the new preset
+      window.history.pushState({}, '', `/p/${data.id}?edit=true`);
+      
+      alert(`Preset "${presetName.trim()}" created successfully! You can now edit it or create a copy.`);
     } catch (error) {
-      console.error('Failed to save preset:', error);
-      setSaveErrorMessage(error.message || 'Failed to save preset. Please try again.');
-      setShowSaveError(true);
-      setTimeout(() => setShowSaveError(false), 5000);
+      console.error('❌ Failed to save preset:', error);
+      console.error('❌ Error details:', JSON.stringify(error, null, 2));
+      alert(`Failed to save preset: ${error.message || 'Unknown error'}. Please try again.`);
     } finally {
-      setIsSavingTemplate(false); // Re-use the template saving spinner
+      setIsSavingTemplate(false);
     }
-  }, [currentUser, canvasWidth, canvasHeight, drawFinalImage, elements, backgroundType, gradientColor1, gradientColor2, gradientAngle, backgroundColor, backgroundImage, backgroundImageScale, backgroundImageX, backgroundImageY, overlayType, overlayColor, overlayOpacity, overlayGradientColor1, overlayGradientOpacity1, overlayGradientColor2, overlayGradientOpacity2, overlayGradientAngle, loadTemplates]);
+  }, [regularUser, canvasWidth, canvasHeight, elements, backgroundType, gradientColor1, gradientColor2, gradientAngle, backgroundColor, backgroundImage, backgroundImageScale, backgroundImageX, backgroundImageY, backgroundImageNaturalDimensions, overlayType, overlayColor, overlayOpacity, overlayGradientColor1, overlayGradientOpacity1, overlayGradientColor2, overlayGradientOpacity2, overlayGradientAngle, pageBackgroundType, pageGradientColor1, pageGradientColor2, pageBackgroundColor, pageBackgroundImage, pageBackgroundScale, pageBackgroundX, pageBackgroundY, showCanvasBackgroundOverlay]);
   
   const handleClearGallery = useCallback(async () => {
     try {
@@ -2469,13 +2703,13 @@ export default function ImageGeneratorPage() {
               <div className="flex gap-3">
                 <button
                   onClick={handleAdminCodeSubmit}
-                  className="flex-1 bg-indigo-500 hover:bg-indigo-600 text-white py-3 px-6 rounded-lg font-semibold transition-colors"
+                  className="flex-1 bg-orange-500 text-white py-3 px-6 rounded-lg font-semibold transition-opacity hover:opacity-80"
                 >
                   Login
                 </button>
                 <button
                   onClick={() => setShowAdminPrompt(false)}
-                  className="flex-1 bg-white/10 hover:bg-white/20 text-white py-3 px-6 rounded-lg font-semibold transition-colors"
+                  className="flex-1 bg-white/10 text-white py-3 px-6 rounded-lg font-semibold transition-opacity hover:opacity-80"
                 >
                   Cancel
                 </button>
@@ -2535,7 +2769,7 @@ export default function ImageGeneratorPage() {
       {/* Google Fonts and Styles */}
       <link rel="preconnect" href="https://fonts.googleapis.com" />
       <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="true" />
-      <link href="https://fonts.googleapis.com/css2?family=Archivo+Expanded:wght@300;400;500;600;700&family=Archivo:wght@300;400;500;600;700&family=DM+Serif+Text:ital@0;0&family=Indie+Flower&family=Inter:wght@100..900;1,100..900&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap" rel="stylesheet" />
+      <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@100;200;300;400;500;600;700;800;900&family=DM+Sans:wght@100;200;300;400;500;600;700;800;900&family=Archivo:wght@100;200;300;400;500;600;700;800;900&family=Host+Grotesk:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
       <style>{`
         @keyframes fadeIn {
           from { opacity: 0; }
@@ -2554,9 +2788,27 @@ export default function ImageGeneratorPage() {
       `}</style>
 
       {/* User Authentication Panel - Show for both admins and regular users */}
-      <div className="fixed top-4 left-4 z-[200]">
+      <div className="fixed top-4 left-4 z-[200] flex gap-2">
+        {/* Logo - Always visible */}
+        <Button 
+          onClick={() => navigate('/')}
+          className="h-12 px-3 bg-transparent !border-0 shadow-none flex items-center justify-center hover:opacity-80 transition-all duration-300"
+          variant="ghost"
+          title="Go to Home"
+        >
+          <img src={sattendWhiteLogo} alt="Sattend" className="h-10" />
+        </Button>
+
+        {/* User Authentication Buttons */}
         {adminUser ? (
           <div className="flex gap-2">
+            <Button 
+              onClick={(e) => { e.stopPropagation(); toggleUserProfile(); }}
+              className="w-12 h-12 bg-red-500/20 border border-red-500/30 rounded-xl backdrop-blur-xl flex items-center justify-center hover:bg-red-500/30 transition-all duration-300 text-red-300"
+              title={`Admin Account: ${adminUser.email}`}
+            >
+              <UserIcon className="w-6 h-6" />
+            </Button>
             <Button 
               onClick={(e) => { e.stopPropagation(); toggleAdminPanel(); }}
               className="w-12 h-12 bg-red-500/20 border border-red-500/30 rounded-xl backdrop-blur-xl flex items-center justify-center hover:bg-red-500/30 transition-all duration-300 text-red-300"
@@ -2576,7 +2828,7 @@ export default function ImageGeneratorPage() {
           <div className="flex gap-2">
             <Button 
               onClick={(e) => { e.stopPropagation(); toggleUserProfile(); }}
-              className="w-12 h-12 bg-blue-500/20 border border-blue-500/30 rounded-xl backdrop-blur-xl flex items-center justify-center hover:bg-blue-500/30 transition-all duration-300 text-blue-300"
+              className="w-12 h-12 bg-orange-500/20 border border-orange-500/30 rounded-xl backdrop-blur-xl flex items-center justify-center hover:bg-orange-500/30 transition-all duration-300 text-orange-300"
               title={`Account: ${regularUser.email}`}
             >
               <UserIcon className="w-6 h-6" />
@@ -2590,26 +2842,15 @@ export default function ImageGeneratorPage() {
             </Button>
           </div>
         ) : (
-          <div className="flex gap-2">
-            <Button 
-              onClick={(e) => { e.stopPropagation(); handleUserLogin(); }}
-              disabled={isCheckingAdmin}
-              className="px-4 py-2 bg-blue-500/20 border border-blue-500/30 rounded-xl backdrop-blur-xl flex items-center gap-2 hover:bg-blue-500/30 transition-all duration-300 text-blue-300"
-              title="Sign in with Google"
-            >
-              <UserIcon className="w-5 h-5" />
-              {isCheckingAdmin ? 'Checking...' : 'Sign In'}
-            </Button>
-            <Button 
-              onClick={(e) => { e.stopPropagation(); handleAdminLogin(); }}
-              disabled={isCheckingAdmin}
-              className="px-3 py-2 bg-red-500/20 border border-red-500/30 rounded-xl backdrop-blur-xl flex items-center gap-2 hover:bg-red-500/30 transition-all duration-300 text-red-300 text-sm"
-              title="Admin Login"
-            >
-              <Settings className="w-4 h-4" />
-              Admin
-            </Button>
-          </div>
+          <Button 
+            onClick={(e) => { e.stopPropagation(); handleUserLogin(); }}
+            disabled={isCheckingAdmin}
+            className="px-4 py-2 bg-orange-500/20 border border-orange-500/30 rounded-xl backdrop-blur-xl flex items-center gap-2 hover:bg-orange-500/30 transition-all duration-300 text-orange-300"
+            title="Sign in with Google"
+          >
+            <UserIcon className="w-5 h-5" />
+            {isCheckingAdmin ? 'Checking...' : 'Sign In'}
+          </Button>
         )}
       </div>
 
@@ -2632,6 +2873,7 @@ export default function ImageGeneratorPage() {
                   settings={adminSettings}
                   onSettingChange={handleAdminSettingsChange}
                   onSave={saveAdminSettings}
+                  adminUser={adminUser}
                   isSaving={isSavingAdminSettings}
                   hasUnsavedChanges={hasUnsavedChanges}
                   showSavedMessage={showSavedMessage}
@@ -2640,8 +2882,8 @@ export default function ImageGeneratorPage() {
             </>
       )}
 
-      {/* User Profile Panel */}
-      {regularUser && showUserProfile && (
+      {/* User Profile Panel - Show for both admin and regular users */}
+      {(adminUser || regularUser) && showUserProfile && (
             <>
               {/* Backdrop specifically for User Profile Panel */}
               <div 
@@ -2656,11 +2898,15 @@ export default function ImageGeneratorPage() {
                   <X className="w-5 h-5" />
                 </button>
                 <UserProfile 
-                  user={regularUser}
-                  isAdmin={false}
+                  user={adminUser || regularUser}
+                  isAdmin={!!adminUser}
                   onClose={() => setShowUserProfile(false)}
-                  onLogout={handleUserLogout}
+                  onLogout={adminUser ? handleAdminLogout : handleUserLogout}
                   onPreferencesChange={handleUserPreferencesChange}
+                  onOpenPresets={() => {
+                    setShowUserProfile(false);
+                    setShowTemplatesPanel(true);
+                  }}
                 />
               </div>
             </>
@@ -2668,12 +2914,16 @@ export default function ImageGeneratorPage() {
 
       {/* Control Icons - Fixed in corner */}
       <div className="fixed top-4 right-4 z-30 flex items-start gap-2">
+        {/* Keyboard Shortcuts Help */}
+        <KeyboardShortcutsHelp />
+        
         {/* Templates Panel Control - Hide if disabled */}
         {(!adminSettings || adminSettings.generalControls?.templatesEnabled !== false) && (
           <div className="relative">
             <button 
+              data-tour="templates-button"
               onClick={(e) => { e.stopPropagation(); handleTemplatesPanelToggle(); }}
-              className="w-12 h-12 bg-white/20 border border-white/30 rounded-xl backdrop-blur-xl flex items-center justify-center hover:bg-white/30 transition-all duration-300 text-white relative shadow-lg"
+              className="w-12 h-12 bg-white/20 border border-white/30 rounded-xl backdrop-blur-xl flex items-center justify-center transition-opacity hover:opacity-80 text-white relative shadow-lg"
             >
               <Save className="w-6 h-6" />
             </button>
@@ -2711,8 +2961,9 @@ export default function ImageGeneratorPage() {
         {(!adminSettings || adminSettings.generalControls?.layersEnabled !== false) && (
           <div className="relative">
             <button 
+              data-tour="layers-button"
               onClick={(e) => { e.stopPropagation(); handleLayersPanelToggle(); }}
-              className="w-12 h-12 bg-white/20 border border-white/30 rounded-xl backdrop-blur-xl flex items-center justify-center hover:bg-white/30 transition-all duration-300 text-white relative shadow-lg"
+              className="w-12 h-12 bg-white/20 border border-white/30 rounded-xl backdrop-blur-xl flex items-center justify-center transition-opacity hover:opacity-80 text-white relative shadow-lg"
             >
               <Layers className="w-6 h-6" />
             </button>
@@ -2749,8 +3000,9 @@ export default function ImageGeneratorPage() {
         {(!adminSettings || adminSettings.generalControls?.galleryEnabled !== false) && (
           <div className="relative">
             <button 
+              data-tour="gallery-button"
               onClick={(e) => { e.stopPropagation(); handleGalleryPanelToggle(); }}
-              className="w-12 h-12 bg-white/20 border border-white/30 rounded-xl backdrop-blur-xl flex items-center justify-center hover:bg-white/30 transition-all duration-300 text-white relative shadow-lg"
+              className="w-12 h-12 bg-white/20 border border-white/30 rounded-xl backdrop-blur-xl flex items-center justify-center transition-opacity hover:opacity-80 text-white relative shadow-lg"
             >
               <Heart className="w-6 h-6" />
               {showGalleryDot && galleryImages.length > 0 && (
@@ -2790,12 +3042,12 @@ export default function ImageGeneratorPage() {
       {/* Main Content */}
       <div className="relative z-10 p-4 md:p-8 min-h-screen flex items-center">
         <div className="max-w-7xl mx-auto w-full">
-          {/* Header removed (Etendy logo) */}
+          {/* Header removed (Sattend logo) */}
 
-          {/* Main Grid */}
-          <div className="grid lg:grid-cols-3 gap-6 items-start">
+          {/* Main Grid - Fixed height layout */}
+          <div className="grid lg:grid-cols-3 gap-6 h-[calc(100vh-12rem)]">
             {/* Left Column - Preview */}
-            <div className="lg:col-span-2 flex justify-center">
+            <div className="lg:col-span-2 flex justify-center items-start overflow-auto">
               <CanvasPreview
                 elements={elements} 
                 setElements={setElements}
@@ -2815,6 +3067,10 @@ export default function ImageGeneratorPage() {
                 backgroundImageScale={backgroundImageScale} 
                 backgroundImageX={backgroundImageX} 
                 backgroundImageY={backgroundImageY}
+                setBackgroundImageX={(val) => { pushToHistory(); setBackgroundImageX(val); }}
+                setBackgroundImageY={(val) => { pushToHistory(); setBackgroundImageY(val); }}
+                backgroundImageNaturalDimensions={backgroundImageNaturalDimensions}
+                allowBackgroundDragging={activeControlPanel === 'background'}
                 overlayType={overlayType} 
                 overlayColor={overlayColor} 
                 overlayOpacity={overlayOpacity} 
@@ -2831,37 +3087,55 @@ export default function ImageGeneratorPage() {
                 onCanvasReset={adminSettings?.generalControls?.resetEnabled !== false ? handleCanvasReset : null}
                 onUndo={adminSettings?.generalControls?.undoEnabled !== false ? handleUndo : null}
                 canUndo={history.length > 0 && adminSettings?.generalControls?.undoEnabled !== false}
+                onRedo={adminSettings?.generalControls?.undoEnabled !== false ? handleRedo : null}
+                canRedo={redoHistory.length > 0 && adminSettings?.generalControls?.undoEnabled !== false}
                 onInteractionStart={pushToHistory}
                 onSaveTemplate={handleSaveTemplate}
                 isSavingTemplate={isSavingTemplate}
                 adminSettings={adminSettings}
+                isAdmin={isAdmin}
                 isCropping={isCropping}
+                onElementSelect={(elementId) => {
+                  const element = elements.find(el => el.id === elementId);
+                  if (element) {
+                    if (element.type === 'image') setActiveControlPanel('image');
+                    else if (element.type === 'text') setActiveControlPanel('text');
+                    else if (element.type === 'logo' || element.type === 'shape') setActiveControlPanel('elements');
+                  }
+                }}
+                showNotification={showNotification}
+                showGrid={showGrid}
+                backgroundDragAttempts={backgroundDragAttempts}
+                setBackgroundDragAttempts={setBackgroundDragAttempts}
+                activeControlPanel={activeControlPanel}
+                handleGroupElements={handleGroupElements}
+                handleUngroupElements={handleUngroupElements}
               />
             </div>
 
-            {/* Right Column - Controls (Unified Panel) */}
-            <div className="flex flex-col">
+            {/* Right Column - Controls (Unified Panel) - Fixed height with scroll */}
+            <div className="flex flex-col h-full overflow-hidden">
               {/* Tab/Panel Navigator */}
               <div className="grid grid-cols-3 md:grid-cols-5 gap-1 mb-4 bg-white/10 rounded-xl p-1 border border-white/20 glass-panel">
                 {/* Background Panel Tab */}
                 {adminSettings?.backgroundControls?.locked !== true && (
-                    <button onClick={() => setActiveControlPanel('background')} 
-                            className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg text-xs font-medium transition-all ${activeControlPanel === 'background' ? 'bg-indigo-500 text-white shadow-lg' : 'text-white/70 hover:bg-white/5 hover:text-white'}`}>
+                    <button data-tour="background-tab" onClick={() => setActiveControlPanel('background')} 
+                            className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg text-xs font-medium transition-opacity ${activeControlPanel === 'background' ? 'bg-orange-500 text-white shadow-lg' : 'text-white/70 hover:opacity-80'}`}>
                         <Palette className="w-5 h-5 mb-1" />
                         Background
                     </button>
                 )}
                 {/* Image Panel Tab */}
                 {(!adminSettings || adminSettings.imageControls?.uploadEnabled !== false) && (
-                    <button onClick={() => setActiveControlPanel('image')} 
-                            className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg text-xs font-medium transition-all ${activeControlPanel === 'image' ? 'bg-indigo-500 text-white shadow-lg' : 'text-white/70 hover:bg-white/5 hover:text-white'}`}>
+                    <button data-tour="image-tab" onClick={() => setActiveControlPanel('image')} 
+                            className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg text-xs font-medium transition-opacity ${activeControlPanel === 'image' ? 'bg-orange-500 text-white shadow-lg' : 'text-white/70 hover:opacity-80'}`}>
                         <ImageIcon className="w-5 h-5 mb-1" />
                         Image
                     </button>
                 )}
                 {/* Text Panel Tab */}
-                <button onClick={() => setActiveControlPanel('text')} 
-                        className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg text-xs font-medium transition-all ${activeControlPanel === 'text' ? 'bg-indigo-500 text-white shadow-lg' : 'text-white/70 hover:bg-white/5 hover:text-white'}`}>
+                <button data-tour="text-tab" onClick={() => setActiveControlPanel('text')} 
+                        className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg text-xs font-medium transition-opacity ${activeControlPanel === 'text' ? 'bg-orange-500 text-white shadow-lg' : 'text-white/70 hover:opacity-80'}`}>
                     <Type className="w-5 h-5 mb-1" />
                     Text
                 </button>
@@ -2871,22 +3145,22 @@ export default function ImageGeneratorPage() {
                   adminSettings?.shapeControls?.lineEnabled ||
                   adminSettings?.shapeControls?.starEnabled
                 ) && (
-                    <button onClick={() => setActiveControlPanel('elements')} 
-                            className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg text-xs font-medium transition-all ${activeControlPanel === 'elements' ? 'bg-indigo-500 text-white shadow-lg' : 'text-white/70 hover:bg-white/5 hover:text-white'}`}>
+                    <button data-tour="elements-tab" onClick={() => setActiveControlPanel('elements')} 
+                            className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg text-xs font-medium transition-opacity ${activeControlPanel === 'elements' ? 'bg-orange-500 text-white shadow-lg' : 'text-white/70 hover:opacity-80'}`}>
                         <Shapes className="w-5 h-5 mb-1" />
                         Elements
                     </button>
                 )}
                 {/* Download Panel Tab */}
-                <button onClick={() => setActiveControlPanel('download')} 
-                        className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg text-xs font-medium transition-all ${activeControlPanel === 'download' ? 'bg-indigo-500 text-white shadow-lg' : 'text-white/70 hover:bg-white/5 hover:text-white'}`}>
+                <button data-tour="download-tab" onClick={() => setActiveControlPanel('download')} 
+                        className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg text-xs font-medium transition-opacity ${activeControlPanel === 'download' ? 'bg-orange-500 text-white shadow-lg' : 'text-white/70 hover:opacity-80'}`}>
                     <Download className="w-5 h-5 mb-1" />
                     Download
                 </button>
               </div>
 
-              {/* Render active panel content */}
-              <div className="flex-grow bg-white/10 glass-panel border border-white/20 rounded-xl p-4">
+              {/* Render active panel content - Scrollable with admin-style scrollbar */}
+              <div className="flex-grow bg-white/10 glass-panel border border-white/20 rounded-xl p-4 overflow-auto panel-scroll">
                 {activeControlPanel === 'background' && adminSettings?.backgroundControls?.locked !== true && (
                   <Step1Background 
                     backgroundType={backgroundType} 
@@ -2937,7 +3211,7 @@ export default function ImageGeneratorPage() {
                 {activeControlPanel === 'image' && (!adminSettings || adminSettings.imageControls?.uploadEnabled !== false) && (
                   <Step2Image 
                     photo={selectedElementIds.length === 1 ? elements.find(el => el.id === selectedElementIds[0] && el.type === 'image') : null}
-                    images={elements.filter(el => el.type === 'image')}
+                    images={elements.filter(el => el.type === 'image' && el.src)}
                     onPhotoUpload={handlePhotoUpload}
                     updateElement={updateElement}
                     pushToHistory={pushToHistory}
@@ -2987,20 +3261,24 @@ export default function ImageGeneratorPage() {
                 )}
 
                 {activeControlPanel === 'download' && (
-                  <Step5Download 
-                    onDownload={handleDownload} 
-                    onSave={handleSaveToGallery} 
-                    isDownloading={isDownloading} 
-                    isSaving={isSaving} 
-                    onSaveTemplate={handleSaveTemplate}
-                    isSavingTemplate={isSavingTemplate}
-                    onSavePreset={saveCurrentPreset}
-                    isSavingPreset={isSavingPreset}
-                    isEditMode={isEditMode}
-                    presetName={currentPreset?.name}
-                    user={regularUser}
-                    onStatsUpdate={handleStatsUpdate}
-                  />
+                  <>
+                    {console.log('🔍 ImageGenerator - Passing to Step5Download:', { regularUser, isEditMode, currentPreset })}
+                    <Step5Download 
+                      onDownload={handleDownload} 
+                      onSave={handleSaveToGallery} 
+                      isDownloading={isDownloading} 
+                      isSaving={isSaving} 
+                      onSaveTemplate={handleSaveTemplate}
+                      isSavingTemplate={isSavingTemplate}
+                      onSavePreset={saveCurrentPreset}
+                      isSavingPreset={isSavingPreset}
+                      isEditMode={isEditMode}
+                      presetName={currentPreset?.name}
+                      onSaveAsNewPreset={handleSaveCurrentAsMyPreset}
+                      user={regularUser}
+                      onStatsUpdate={handleStatsUpdate}
+                    />
+                  </>
                 )}
               </div>
             </div>
@@ -3075,10 +3353,60 @@ export default function ImageGeneratorPage() {
         </div>
       )}
 
+      {/* Page Loading Overlay - Shows on initial page load */}
+      {isPageLoading && (
+        <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center">
+          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 flex flex-col items-center gap-4 border border-white/20">
+            <div className="w-16 h-16 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
+            <p className="text-white text-lg font-semibold">Loading...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Loading Overlay - Shows when preset is loading */}
+      {isLoadingPreset && (
+        <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center">
+          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 flex flex-col items-center gap-4 border border-white/20">
+            <div className="w-16 h-16 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
+            <p className="text-white text-lg font-semibold">Loading Preset...</p>
+          </div>
+        </div>
+      )}
+
       {/* Update Counter - For tracking code changes */}
       <div className="fixed bottom-4 left-4 z-50 bg-black/50 text-white/70 px-3 py-1 rounded text-xs font-mono">
-        Update #25 - Page Background Controls Working
+        Update #28 - UX Improvements & Undo/Redo Fix
       </div>
+
+      {/* Tooltip Tour */}
+      {showTooltipTour && (
+        <TooltipTour onComplete={() => setShowTooltipTour(false)} />
+      )}
+
+      {/* Quick Tooltips Help */}
+      <QuickTooltips />
+
+      {/* Grid Toggle Button */}
+      <button
+        onClick={() => setShowGrid(!showGrid)}
+        className={`fixed bottom-4 right-20 z-[9999] w-14 h-14 rounded-full ${
+          showGrid ? 'bg-orange-500' : 'bg-white/10'
+        } hover:bg-orange-600 text-white shadow-2xl flex items-center justify-center transition-all duration-300 hover:scale-110 border-2 ${
+          showGrid ? 'border-orange-400' : 'border-white/20'
+        } backdrop-blur-xl`}
+        title={showGrid ? "Hide Grid" : "Show Grid"}
+      >
+        <Grid className={`w-6 h-6 ${!showGrid && 'opacity-50'}`} />
+      </button>
+
+      {/* Notification */}
+      {notification && (
+        <Notification
+          message={notification.message}
+          type={notification.type}
+          onClose={() => setNotification(null)}
+        />
+      )}
     </div>
   );
 }

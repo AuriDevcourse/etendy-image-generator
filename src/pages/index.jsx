@@ -1,8 +1,10 @@
 import Layout from "./Layout.jsx";
 
+import LandingPage from "./LandingPage";
 import ImageGenerator from "./ImageGenerator";
 import AdminPage from "./admin";
 import TestPage from "./test";
+import PresetsDashboard from "./PresetsDashboard";
 
 import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
 
@@ -30,12 +32,20 @@ function PagesContent() {
     const location = useLocation();
     const currentPage = _getCurrentPage(location.pathname);
     
-    // Admin and test pages should not use the Layout wrapper
-    if (location.pathname === '/admin') {
-        return <AdminPage />;
+    // Landing page should not use the Layout wrapper
+    if (location.pathname === '/') {
+        return <LandingPage />;
     }
+    
+    // Admin page removed - admins now use the unified /presets/:userId page
+    // Test pages should not use the Layout wrapper
     if (location.pathname === '/test') {
         return <TestPage />;
+    }
+    
+    // Handle presets dashboard routes /presets/:userId
+    if (location.pathname.startsWith('/presets/')) {
+        return <PresetsDashboard />;
     }
     
     // Handle preset routes /p/preset-id
@@ -46,12 +56,8 @@ function PagesContent() {
     return (
         <Layout currentPageName={currentPage}>
             <Routes>            
-                
-                    <Route path="/" element={<ImageGenerator />} />
-                
-                
+                <Route path="/generator" element={<ImageGenerator />} />
                 <Route path="/ImageGenerator" element={<ImageGenerator />} />
-                
             </Routes>
         </Layout>
     );

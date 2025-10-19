@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
-import { Download, Save } from "lucide-react";
+import { Download, Save, Plus } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
@@ -16,10 +16,16 @@ export default function Step5Download({
   isSavingPreset, 
   isEditMode, 
   presetName,
+  onSaveAsNewPreset, // Add new prop for creating new presets
   user = null, // Add user prop for tracking
   onStatsUpdate = null // Add callback for stats updates
 }) {
   const [downloadFormat, setDownloadFormat] = useState('jpg');
+  
+  // Debug logging
+  console.log('🔍 Step5Download - user:', user);
+  console.log('🔍 Step5Download - onSaveAsNewPreset:', onSaveAsNewPreset);
+  console.log('🔍 Step5Download - isEditMode:', isEditMode);
 
   const handleDownload = async () => {
     // Call the original download function
@@ -68,6 +74,18 @@ export default function Step5Download({
             >
               <Save className="w-4 h-4 mr-2" />
               {isSavingPreset ? 'Saving...' : `Update "${presetName}" Preset`}
+            </Button>
+          )}
+
+          {/* Save as New Preset Button (for logged-in users) - Shows always when logged in */}
+          {user && onSaveAsNewPreset && (
+            <Button 
+              onClick={onSaveAsNewPreset} 
+              disabled={isSavingTemplate} 
+              className="w-full bg-gradient-to-r from-purple-500/30 to-pink-500/30 border border-white/20 backdrop-blur-xl text-white hover:from-purple-500/40 hover:to-pink-500/40 hover:border-white/30 transition-all duration-300 shadow-lg shadow-purple-500/25 py-3 text-sm font-semibold"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              {isSavingTemplate ? 'Saving...' : (isEditMode ? 'Save as Copy' : 'Save as New Preset')}
             </Button>
           )}
 

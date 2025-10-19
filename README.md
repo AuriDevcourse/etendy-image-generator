@@ -1,8 +1,8 @@
-# Base44 App
+# Sattend - Gradient Image Generator
 
+Create stunning gradients and visual designs in seconds.
 
-This app was created automatically by Base44.
-It's a Vite+React app that communicates with the Base44 API.
+This is a Vite+React app with Supabase backend.
 
 ## Running the app
 

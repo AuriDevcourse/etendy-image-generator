@@ -69,24 +69,36 @@ export const presetService = {
     return data
   },
 
-  // Update existing preset
-  async updatePreset(presetId, settings) {
+  // Update existing preset (with user ownership verification)
+  async updatePreset(presetId, settings, userId = null) {
     console.log('🔄 Updating preset:', presetId);
     console.log('🔄 New settings:', settings);
+    console.log('🔄 User ID:', userId);
     
     // Clean and serialize the settings to ensure JSON compatibility
     const cleanSettings = this.cleanSettingsForDatabase(settings);
     console.log('🧹 Cleaned settings:', cleanSettings);
     
-    const { data, error } = await supabase
+    // Build the update query
+    let query = supabase
       .from('presets')
       .update({ settings: cleanSettings })
-      .eq('id', presetId)
+      .eq('id', presetId);
+    
+    // If userId is provided, verify ownership
+    if (userId) {
+      query = query.eq('user_id', userId);
+    }
+    
+    const { data, error } = await query
       .select()
       .single()
     
     if (error) {
       console.error('❌ Update preset error:', error);
+      if (error.code === 'PGRST116') {
+        throw new Error('You do not have permission to update this preset or it does not exist.');
+      }
       throw error;
     }
     
@@ -119,42 +131,23 @@ export const presetService = {
         return value;
       }));
       
-      // Additional cleaning for elements array
+      // Additional cleaning for elements array - PRESERVE ALL PROPERTIES
       if (cleaned.elements && Array.isArray(cleaned.elements)) {
         cleaned.elements = cleaned.elements.map(element => {
           if (!element || typeof element !== 'object') return null;
           
-          // Keep only essential properties for each element
-          const cleanElement = {
-            id: element.id,
-            type: element.type,
-            x: element.x,
-            y: element.y,
-            width: element.width,
-            height: element.height,
-            rotation: element.rotation || 0,
-            opacity: element.opacity || 1,
-            zIndex: element.zIndex || 0
-          };
+          // Keep ALL element properties (don't strip them out!)
+          // Just ensure they're serializable
+          const cleanElement = { ...element };
           
-          // Add type-specific properties
-          if (element.type === 'text') {
-            cleanElement.text = element.text;
-            cleanElement.fontSize = element.fontSize;
-            cleanElement.fontFamily = element.fontFamily;
-            cleanElement.color = element.color;
-            cleanElement.fontWeight = element.fontWeight;
-            cleanElement.textAlign = element.textAlign;
-          } else if (element.type === 'image') {
-            cleanElement.src = element.src;
-            cleanElement.naturalWidth = element.naturalWidth;
-            cleanElement.naturalHeight = element.naturalHeight;
-          } else if (element.type === 'shape') {
-            cleanElement.shapeType = element.shapeType;
-            cleanElement.fill = element.fill;
-            cleanElement.stroke = element.stroke;
-            cleanElement.strokeWidth = element.strokeWidth;
-          }
+          // Remove any non-serializable properties
+          Object.keys(cleanElement).forEach(key => {
+            const value = cleanElement[key];
+            if (typeof value === 'function' || 
+                (value && typeof value === 'object' && value.nodeType)) {
+              delete cleanElement[key];
+            }
+          });
           
           return cleanElement;
         }).filter(Boolean); // Remove null elements
@@ -199,7 +192,40 @@ export const presetService = {
 
   // Delete preset (soft delete)
   async deletePreset(presetId) {
-    console.log('🗑️ Soft deleting preset:', presetId);
+    console.log('🗑️ ========== DELETE PRESET START ==========');
+    console.log('🗑️ Preset ID to delete:', presetId);
+    
+    // First, get the current user to verify ownership
+    console.log('👤 Getting current user...');
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    
+    if (userError) {
+      console.error('❌ Failed to get current user:', userError);
+      throw new Error('Not authenticated');
+    }
+    
+    console.log('👤 Current user ID:', user?.id);
+    console.log('👤 Current user email:', user?.email);
+    
+    // Get the preset to see its current state
+    const { data: preset, error: fetchError } = await supabase
+      .from('presets')
+      .select('*')
+      .eq('id', presetId)
+      .single();
+    
+    if (fetchError) {
+      console.error('❌ Failed to fetch preset:', fetchError);
+      throw fetchError;
+    }
+    
+    console.log('📋 Preset before delete:', preset);
+    console.log('🔍 Ownership check:', {
+      presetUserId: preset.user_id,
+      currentUserId: user?.id,
+      matches: preset.user_id === user?.id,
+      adminEmail: preset.admin_email
+    });
     
     const { data, error } = await supabase
       .from('presets')
@@ -239,7 +265,7 @@ export const authService = {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/`
+        redirectTo: `${window.location.origin}/generator`
       }
     })
     
@@ -323,11 +349,17 @@ export const userService = {
         user_id: userId,
         ...statsUpdate,
         updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'user_id',
+        ignoreDuplicates: false
       })
       .select()
       .single()
     
-    if (error) throw error
+    if (error) {
+      console.error('❌ Failed to update user stats:', error)
+      throw error
+    }
     return data
   },
 
@@ -344,7 +376,7 @@ export const userService = {
   // Initialize user profile (called on first login)
   async initializeUserProfile(user) {
     try {
-      // Create default preferences
+      // Create default preferences (upsert will update if exists)
       await this.saveUserPreferences(user.id, {
         theme: 'dark',
         defaultCanvasSize: 'square',
@@ -357,7 +389,7 @@ export const userService = {
         compressionQuality: 90
       })
 
-      // Initialize stats
+      // Initialize stats (upsert will update if exists)
       await this.updateUserStats(user.id, {
         images_generated: 0,
         templates_created: 0,
@@ -368,7 +400,12 @@ export const userService = {
 
       console.log('✅ User profile initialized successfully')
     } catch (error) {
-      console.error('❌ Failed to initialize user profile:', error)
+      // Silently handle duplicate key errors (profile already exists)
+      if (error.code === '23505') {
+        console.log('ℹ️ User profile already exists, skipping initialization')
+      } else {
+        console.error('❌ Failed to initialize user profile:', error)
+      }
       // Don't throw error - this is not critical for app functionality
     }
   }

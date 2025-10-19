@@ -75,8 +75,8 @@ export default function LayersPanel({ elements, selectedElementIds, onSelectElem
               <GripVertical className="w-5 h-5 text-white/50 flex-shrink-0" />
               <ElementIcon type={element.type} />
               <span className="ml-2 text-sm text-white/90 truncate flex-1">
-                {element.type === 'text' ? (element.content.substring(0, 20) || 'Empty Text') :
-                 element.type === 'shape' ? `${element.shapeType}` :
+                {element.type === 'text' ? ((element.content || element.text || 'Text').substring(0, 20)) :
+                 element.type === 'shape' ? `${element.shapeType || 'Shape'}` :
                  element.type}
               </span>
 

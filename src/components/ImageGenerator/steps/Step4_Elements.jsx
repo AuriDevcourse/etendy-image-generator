@@ -72,7 +72,7 @@ export default function Step4Elements({
 
     switch (shapeType) {
       case 'rectangle':
-        newShape = { ...commonProps, borderRadius: { tl: 0, tr: 0, br: 0, bl: 0 } };
+        newShape = { ...commonProps, borderRadius: 0 }; // Default to linked corners (single number)
         break;
       case 'circle':
         newShape = { ...commonProps };
@@ -140,7 +140,7 @@ export default function Step4Elements({
             {shapeElements.map(shapeEl => (
                 <div 
                     key={shapeEl.id} 
-                    className={`p-3 rounded-lg transition-all duration-200 cursor-pointer flex items-center gap-3 ${selectedElement?.id === shapeEl.id ? 'bg-white/10 ring-2 ring-indigo-400' : 'bg-white/5 hover:bg-white/10'}`}
+                    className={`p-3 rounded-lg transition-all duration-200 cursor-pointer flex items-center gap-3 ${selectedElement?.id === shapeEl.id ? 'bg-white/10 ring-2 ring-orange-400' : 'bg-white/5 hover:bg-white/10'}`}
                     onClick={() => setSelectedElementIds([shapeEl.id])}
                 >
                    <ShapeIcon shapeType={shapeEl.shapeType} className="w-5 h-5 text-white/80"/>

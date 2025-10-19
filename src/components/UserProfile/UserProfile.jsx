@@ -30,7 +30,8 @@ const UserProfile = ({
   isAdmin = false, 
   onClose, 
   onLogout,
-  onPreferencesChange 
+  onPreferencesChange,
+  onOpenPresets
 }) => {
   const [userPreferences, setUserPreferences] = useState({
     theme: 'dark',
@@ -193,29 +194,18 @@ const UserProfile = ({
             </p>
           </div>
         </div>
-        <Button
-          onClick={onClose}
-          variant="ghost"
-          className="text-white/70 hover:text-white"
-        >
-          ×
-        </Button>
       </div>
 
       {/* Tabs */}
       <Tabs defaultValue="profile" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 bg-white/10 border border-white/20">
-          <TabsTrigger value="profile" className="data-[state=active]:bg-white/20">
+        <TabsList className="grid w-full grid-cols-2 bg-white/10 border border-white/20">
+          <TabsTrigger value="profile" className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/70 hover:text-white transition-colors">
             <User className="w-4 h-4 mr-2" />
             Profile
           </TabsTrigger>
-          <TabsTrigger value="preferences" className="data-[state=active]:bg-white/20">
+          <TabsTrigger value="preferences" className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/70 hover:text-white transition-colors">
             <Settings className="w-4 h-4 mr-2" />
             Preferences
-          </TabsTrigger>
-          <TabsTrigger value="stats" className="data-[state=active]:bg-white/20">
-            <Star className="w-4 h-4 mr-2" />
-            Stats
           </TabsTrigger>
         </TabsList>
 
@@ -224,62 +214,17 @@ const UserProfile = ({
           <Card className="bg-white/10 border-white/20 backdrop-blur-xl">
             <CardHeader>
               <CardTitle className="text-white flex items-center gap-2">
-                <User className="w-5 h-5" />
+                <User className="w-5 h-5 text-white" />
                 Account Information
               </CardTitle>
               <CardDescription className="text-white/70">
-                Your account details and basic information
+                Your account details are displayed above
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-white/90">Full Name</Label>
-                  <Input
-                    value={user?.user_metadata?.full_name || ''}
-                    readOnly
-                    className="bg-white/5 border-white/20 text-white"
-                  />
-                </div>
-                <div>
-                  <Label className="text-white/90">Email</Label>
-                  <Input
-                    value={user?.email || ''}
-                    readOnly
-                    className="bg-white/5 border-white/20 text-white"
-                  />
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-white/90">Account Created</Label>
-                  <Input
-                    value={formatDate(user?.created_at)}
-                    readOnly
-                    className="bg-white/5 border-white/20 text-white"
-                  />
-                </div>
-                <div>
-                  <Label className="text-white/90">Last Sign In</Label>
-                  <Input
-                    value={formatDate(user?.last_sign_in_at)}
-                    readOnly
-                    className="bg-white/5 border-white/20 text-white"
-                  />
-                </div>
-              </div>
-
-              <div className="pt-4 border-t border-white/20">
-                <Button
-                  onClick={handleLogout}
-                  variant="destructive"
-                  className="w-full bg-red-500/20 border border-red-500/30 hover:bg-red-500/30"
-                >
-                  <LogOut className="w-4 h-4 mr-2" />
-                  Sign Out
-                </Button>
-              </div>
+              <p className="text-white/60 text-center py-8">
+                Soon to be implemented.
+              </p>
             </CardContent>
           </Card>
         </TabsContent>
@@ -289,11 +234,11 @@ const UserProfile = ({
           <Card className="bg-white/10 border-white/20 backdrop-blur-xl">
             <CardHeader>
               <CardTitle className="text-white flex items-center gap-2">
-                <Settings className="w-5 h-5" />
+                <Settings className="w-5 h-5 text-white" />
                 User Preferences
               </CardTitle>
               <CardDescription className="text-white/70">
-                Customize your experience with Etendy
+                Customize your experience with Sattend
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -301,17 +246,6 @@ const UserProfile = ({
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-white">General</h3>
                 
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label className="text-white/90">Auto-save projects</Label>
-                    <p className="text-sm text-white/60">Automatically save your work</p>
-                  </div>
-                  <Switch
-                    checked={userPreferences.autoSave}
-                    onCheckedChange={(checked) => handlePreferenceChange('autoSave', checked)}
-                  />
-                </div>
-
                 <div className="flex items-center justify-between">
                   <div>
                     <Label className="text-white/90">Show tutorials</Label>
@@ -323,90 +257,31 @@ const UserProfile = ({
                   />
                 </div>
 
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between opacity-50">
                   <div>
                     <Label className="text-white/90">Email notifications</Label>
                     <p className="text-sm text-white/60">Receive updates and news</p>
+                    <p className="text-xs text-white/40 italic mt-1">Coming soon</p>
                   </div>
                   <Switch
-                    checked={userPreferences.emailNotifications}
-                    onCheckedChange={(checked) => handlePreferenceChange('emailNotifications', checked)}
+                    checked={false}
+                    disabled={true}
                   />
                 </div>
               </div>
 
-              {/* Design Preferences */}
-              <div className="space-y-4 pt-4 border-t border-white/20">
-                <h3 className="text-lg font-semibold text-white">Design Defaults</h3>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-white/90">Default Canvas Size</Label>
-                    <Select
-                      value={userPreferences.defaultCanvasSize}
-                      onValueChange={(value) => handlePreferenceChange('defaultCanvasSize', value)}
-                    >
-                      <SelectTrigger className="bg-white/5 border-white/20 text-white">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="square">Square (1:1)</SelectItem>
-                        <SelectItem value="landscape">Landscape (16:9)</SelectItem>
-                        <SelectItem value="portrait">Portrait (9:16)</SelectItem>
-                        <SelectItem value="custom">Custom</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label className="text-white/90">Default Font</Label>
-                    <Select
-                      value={userPreferences.defaultFontFamily}
-                      onValueChange={(value) => handlePreferenceChange('defaultFontFamily', value)}
-                    >
-                      <SelectTrigger className="bg-white/5 border-white/20 text-white">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Inter">Inter</SelectItem>
-                        <SelectItem value="Archivo Expanded">Archivo Expanded</SelectItem>
-                        <SelectItem value="DM Serif Text">DM Serif Text</SelectItem>
-                        <SelectItem value="Playfair Display">Playfair Display</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-white/90">Default Font Size</Label>
-                    <Input
-                      type="number"
-                      value={userPreferences.defaultFontSize}
-                      onChange={(e) => handlePreferenceChange('defaultFontSize', parseInt(e.target.value))}
-                      className="bg-white/5 border-white/20 text-white"
-                      min="8"
-                      max="200"
-                    />
-                  </div>
-
-                  <div>
-                    <Label className="text-white/90">Export Format</Label>
-                    <Select
-                      value={userPreferences.preferredImageFormat}
-                      onValueChange={(value) => handlePreferenceChange('preferredImageFormat', value)}
-                    >
-                      <SelectTrigger className="bg-white/5 border-white/20 text-white">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="png">PNG</SelectItem>
-                        <SelectItem value="jpg">JPG</SelectItem>
-                        <SelectItem value="webp">WebP</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
+              {/* My Presets Button */}
+              <div className="pt-4 border-t border-white/20">
+                <Button
+                  onClick={() => {
+                    // Navigate to user's presets dashboard
+                    window.location.href = `/presets/${user?.id}`;
+                  }}
+                  className="w-full bg-orange-500/20 border border-orange-500/30 hover:bg-orange-500/30 text-orange-300"
+                >
+                  <Palette className="w-4 h-4 mr-2" />
+                  My Presets
+                </Button>
               </div>
 
               {/* Save Button */}
@@ -414,7 +289,7 @@ const UserProfile = ({
                 <Button
                   onClick={savePreferences}
                   disabled={isSaving}
-                  className="w-full bg-blue-500/20 border border-blue-500/30 hover:bg-blue-500/30"
+                  className="w-full bg-orange-500/20 border border-orange-500/30 hover:bg-orange-500/30 text-orange-300"
                 >
                   {isSaving ? (
                     <>
@@ -438,71 +313,6 @@ const UserProfile = ({
           </Card>
         </TabsContent>
 
-        {/* Stats Tab */}
-        <TabsContent value="stats" className="space-y-4">
-          <Card className="bg-white/10 border-white/20 backdrop-blur-xl">
-            <CardHeader>
-              <CardTitle className="text-white flex items-center gap-2">
-                <Star className="w-5 h-5" />
-                Your Stats
-              </CardTitle>
-              <CardDescription className="text-white/70">
-                Track your creative journey with Etendy
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-white/5 p-4 rounded-lg border border-white/10">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-blue-500/20 rounded-lg">
-                      <ImageIcon className="w-5 h-5 text-blue-300" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold text-white">{userStats.imagesGenerated}</p>
-                      <p className="text-sm text-white/70">Images Generated</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white/5 p-4 rounded-lg border border-white/10">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-green-500/20 rounded-lg">
-                      <Download className="w-5 h-5 text-green-300" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold text-white">{userStats.totalDownloads}</p>
-                      <p className="text-sm text-white/70">Downloads</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white/5 p-4 rounded-lg border border-white/10">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-purple-500/20 rounded-lg">
-                      <Save className="w-5 h-5 text-purple-300" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold text-white">{userStats.templatesCreated}</p>
-                      <p className="text-sm text-white/70">Templates Created</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white/5 p-4 rounded-lg border border-white/10">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-orange-500/20 rounded-lg">
-                      <Clock className="w-5 h-5 text-orange-300" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-white">{formatDate(userStats.lastLogin)}</p>
-                      <p className="text-sm text-white/70">Last Login</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
       </Tabs>
     </div>
   );

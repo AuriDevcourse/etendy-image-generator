@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, Layers, X, RotateCw, Image as ImageIcon, Lock, Palette } from "lucide-react"; // Added Palette
+import { Upload, Layers, X, RotateCw, Image as ImageIcon, Lock, Palette, ArrowLeft, ArrowRight, ArrowUp, ArrowDown } from "lucide-react"; // Added Palette and arrow icons
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import ColorPicker from '../ColorPicker';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -91,6 +91,48 @@ const snapAngle = (value, threshold = 5) => {
   return value;
 };
 
+const DraggableThumbnail = ({ backgroundImage, canvasWidth, canvasHeight, backgroundImageX, backgroundImageY, backgroundImageScale, naturalDimensions, onPositionChange }) => {
+  const thumbnailRef = React.useRef(null);
+
+  // Calculate thumbnail dimensions (150px width, maintain aspect ratio)
+  const thumbnailWidth = 150;
+  const thumbnailHeight = (canvasHeight / canvasWidth) * thumbnailWidth;
+  
+  // Calculate image position and size within thumbnail
+  const scale = thumbnailWidth / canvasWidth;
+  const imgX = backgroundImageX * scale;
+  const imgY = backgroundImageY * scale;
+  const imgWidth = naturalDimensions.width * backgroundImageScale * scale;
+  const imgHeight = naturalDimensions.height * backgroundImageScale * scale;
+
+  return (
+    <div className="space-y-2">
+      <Label className="text-white/80 text-xs font-medium">Preview</Label>
+      <div
+        ref={thumbnailRef}
+        className="relative border-2 border-white/20 rounded-lg overflow-hidden bg-black/30"
+        style={{ width: thumbnailWidth, height: thumbnailHeight }}
+      >
+        <img
+          src={backgroundImage}
+          alt="Background preview"
+          className="absolute pointer-events-none"
+          style={{
+            left: imgX,
+            top: imgY,
+            width: imgWidth,
+            height: imgHeight,
+          }}
+          draggable={false}
+        />
+        {/* Canvas boundary indicator */}
+        <div className="absolute inset-0 border border-orange-400/50 pointer-events-none" />
+      </div>
+      <p className="text-xs text-white/50 text-center">Drag on canvas to reposition</p>
+    </div>
+  );
+};
+
 export default function Step1Background({
   // Canvas Background Props
   backgroundType, setBackgroundType,
@@ -157,6 +199,9 @@ export default function Step1Background({
         setBackgroundImageX((canvasWidth - img.naturalWidth * initialScale) / 2);
         setBackgroundImageY((canvasHeight - img.naturalHeight * initialScale) / 2);
         
+        // Show success message
+        console.log('✅ Background image uploaded successfully:', file.name);
+        
         if (onBackgroundChange) onBackgroundChange();
       }
       img.src = event.target.result;
@@ -214,7 +259,7 @@ export default function Step1Background({
           </Tabs>
         </div>
 
-        <Accordion type="multiple" className="w-full space-y-2" defaultValue={['gradient-colors', 'overlay', 'bg-image-settings']}>
+        <Accordion type="multiple" className="w-full space-y-2" defaultValue={['gradient-colors', 'solid-color', 'bg-image-settings']}>
           {backgroundType === 'gradient' && canUseGradient && (
             <AccordionItem value="gradient-colors" className="border-b-0">
               <AccordionTrigger className="text-sm font-semibold text-white/80 no-underline hover:no-underline w-full flex items-center justify-between text-left p-3 -mx-3 rounded-lg hover:bg-white/5 transition-colors duration-200">
@@ -287,6 +332,22 @@ export default function Step1Background({
                  </label>
                  {backgroundImage && (
                     <div className="space-y-4">
+                      {/* Draggable Thumbnail Preview */}
+                      <DraggableThumbnail
+                        backgroundImage={backgroundImage}
+                        canvasWidth={canvasWidth}
+                        canvasHeight={canvasHeight}
+                        backgroundImageX={backgroundImageX}
+                        backgroundImageY={backgroundImageY}
+                        backgroundImageScale={backgroundImageScale}
+                        naturalDimensions={backgroundImageNaturalDimensions}
+                        onPositionChange={(newX, newY) => {
+                          setBackgroundImageX(newX);
+                          setBackgroundImageY(newY);
+                          if (onBackgroundChange) onBackgroundChange();
+                        }}
+                      />
+                      
                       <div>
                         <div className="flex justify-between items-center">
                           <Label className="text-white/80 text-xs font-medium">Image Size</Label>
@@ -294,20 +355,54 @@ export default function Step1Background({
                         </div>
                         <Slider value={[backgroundImageScale * 100]} onValueChange={([val]) => { handleBackgroundImageScaleChange(val / 100); onBackgroundChange(); }} min={10} max={500} step={1} className="mt-2 glass-slider" />
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <div className="flex justify-between items-center">
-                            <Label className="text-white/80 text-xs font-medium">X Position</Label>
-                            <EditableBadge value={Math.round(backgroundImageX)} onValueChange={(val) => { setBackgroundImageX(val); onBackgroundChange(); }} suffix="px" max={canvasWidth} min={-canvasWidth} />
+                      {/* Position Controls with Arrow Buttons */}
+                      <div className="space-y-3">
+                        <Label className="text-white/80 text-xs font-medium">Position</Label>
+                        <div className="flex items-center justify-center gap-2">
+                          {/* Horizontal controls */}
+                          <Button
+                            size="icon"
+                            onClick={() => { setBackgroundImageX(backgroundImageX - 10); onBackgroundChange(); }}
+                            className="w-10 h-10 bg-white/10 hover:bg-white/20 text-white border-0"
+                            title="Move Left"
+                          >
+                            <ArrowLeft className="w-5 h-5" />
+                          </Button>
+                          
+                          {/* Vertical controls */}
+                          <div className="flex flex-col gap-2">
+                            <Button
+                              size="icon"
+                              onClick={() => { setBackgroundImageY(backgroundImageY - 10); onBackgroundChange(); }}
+                              className="w-10 h-10 bg-white/10 hover:bg-white/20 text-white border-0"
+                              title="Move Up"
+                            >
+                              <ArrowUp className="w-5 h-5" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              onClick={() => { setBackgroundImageY(backgroundImageY + 10); onBackgroundChange(); }}
+                              className="w-10 h-10 bg-white/10 hover:bg-white/20 text-white border-0"
+                              title="Move Down"
+                            >
+                              <ArrowDown className="w-5 h-5" />
+                            </Button>
                           </div>
-                          <Slider value={[backgroundImageX]} onValueChange={([val]) => { setBackgroundImageX(val); onBackgroundChange(); }} min={-canvasWidth} max={canvasWidth} step={10} className="mt-2 glass-slider" />
+                          
+                          <Button
+                            size="icon"
+                            onClick={() => { setBackgroundImageX(backgroundImageX + 10); onBackgroundChange(); }}
+                            className="w-10 h-10 bg-white/10 hover:bg-white/20 text-white border-0"
+                            title="Move Right"
+                          >
+                            <ArrowRight className="w-5 h-5" />
+                          </Button>
                         </div>
-                        <div>
-                          <div className="flex justify-between items-center">
-                            <Label className="text-white/80 text-xs font-medium">Y Position</Label>
-                            <EditableBadge value={Math.round(backgroundImageY)} onValueChange={(val) => { setBackgroundImageY(val); onBackgroundChange(); }} suffix="px" max={canvasHeight} min={-canvasHeight} />
-                          </div>
-                          <Slider value={[backgroundImageY]} onValueChange={([val]) => { setBackgroundImageY(val); onBackgroundChange(); }} min={-canvasHeight} max={canvasHeight} step={10} className="mt-2 glass-slider" />
+                        
+                        {/* Display current position */}
+                        <div className="flex justify-center gap-4 text-xs text-white/60">
+                          <span>X: {Math.round(backgroundImageX)}px</span>
+                          <span>Y: {Math.round(backgroundImageY)}px</span>
                         </div>
                       </div>
                     </div>

@@ -8,25 +8,39 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Type, ChevronDown, AlignLeft, AlignCenter, AlignRight } from "lucide-react"; // Changed Text to Type icon
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Type, ChevronDown, AlignLeft, AlignCenter, AlignRight, ChevronRight } from "lucide-react"; // Changed Text to Type icon
 import ColorPicker from '../ColorPicker';
 import { EditableBadge } from './EditableBadge';
 // Removed Accordion imports as per changes
 
 const FONT_FAMILIES = [
-  "Archivo Expanded",
-  "DM Serif Text",
-  "Playfair Display",
-  "Inter",
-  "Archivo"
+  "BBH Sans Bogle",
+  "Poppins",
+  "DM Sans",
+  "Archivo",
+  "Host Grotesk"
 ];
 
 const FONT_WEIGHTS = {
-  'Archivo Expanded': ['300', '400', '500', '600', '700'],
-  'DM Serif Text': ['400'],
-  'Playfair Display': ['400', '500', '600', '700', '800', '900'],
-  'Inter': ['100', '200', '300', '400', '500', '600', '700', '800', '900'],
-  'Archivo': ['300', '400', '500', '600', '700']
+  'BBH Sans Bogle': ['400', '500', '600', '700'],
+  'Poppins': ['100', '200', '300', '400', '500', '600', '700', '800', '900'],
+  'DM Sans': ['100', '200', '300', '400', '500', '600', '700', '800', '900'],
+  'Archivo': ['100', '200', '300', '400', '500', '600', '700', '800', '900'],
+  'Host Grotesk': ['300', '400', '500', '600', '700', '800']
+};
+
+// Simplified weight labels
+const WEIGHT_LABELS = {
+  'Light': '300',
+  'Medium': '500',
+  'Semi Bold': '600',
+  'Bold': '700'
+};
+
+const getWeightLabel = (weight) => {
+  const entry = Object.entries(WEIGHT_LABELS).find(([_, val]) => val === weight);
+  return entry ? entry[0] : 'Medium';
 };
 
 export default function Step3Text({
@@ -45,7 +59,7 @@ export default function Step3Text({
   const textElements = elements.filter(el => el.type === 'text');
 
   const addNewText = () => {
-    let defaultFont = 'Archivo Expanded';
+    let defaultFont = 'Poppins';
     let defaultWeight = '600';
     let defaultSize = 80;
 
@@ -77,7 +91,7 @@ export default function Step3Text({
       opacity: 1,
       blur: 0,
       textAlign: 'center',
-      lineHeight: 1.2
+      lineHeight: 0.8
     };
     addElement(newText);
   };
@@ -102,7 +116,7 @@ export default function Step3Text({
   };
 
   return (
-    <Card className="glass-panel border border-white/20 backdrop-blur-xl bg-white/10 p-6" style={{ maxHeight: '1100px', overflowY: 'auto' }}>
+    <Card className="glass-panel border border-white/20 backdrop-blur-xl bg-white/10 p-6">
       <div className="space-y-6 pr-2 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent"> {/* Replaced Accordion with a div */}
         <h3 className="text-lg font-semibold text-white/90 flex items-center gap-2">
           <Type className="w-5 h-5" /> {/* Changed icon from Text to Type */}
@@ -118,7 +132,7 @@ export default function Step3Text({
                 {textElements.map(textEl => (
                     <div 
                         key={textEl.id} 
-                        className={`p-3 rounded-lg transition-all duration-200 cursor-pointer ${selectedElement?.id === textEl.id ? 'bg-white/10 ring-2 ring-indigo-400' : 'bg-white/5 hover:bg-white/10'}`}
+                        className={`p-3 rounded-lg transition-all duration-200 cursor-pointer ${selectedElement?.id === textEl.id ? 'bg-white/10 ring-2 ring-orange-400' : 'bg-white/5 hover:bg-white/10'}`}
                         onClick={() => setSelectedElementIds([textEl.id])}
                     >
                         <p className="text-white truncate">{textEl.content}</p>
@@ -141,7 +155,8 @@ export default function Step3Text({
             {showFontControls && (
               <div className="space-y-3 pt-2">
                 <Label className="text-white/80 text-sm font-medium">Font Settings</Label>
-                <div className="grid grid-cols-1 gap-4">
+                {/* Font and Alignment on same row */}
+                <div className="grid grid-cols-[1fr_auto] gap-2">
                     {fontSettings.enabled !== false && (
                     <Popover>
                         <PopoverTrigger asChild>
@@ -167,18 +182,28 @@ export default function Step3Text({
                         </PopoverContent>
                     </Popover>
                     )}
+                    
+                    {/* Alignment buttons next to font */}
+                    <Tabs value={selectedText.textAlign || 'left'} onValueChange={(val) => wrappedUpdate({ textAlign: val })} className="w-auto">
+                      <TabsList className="grid grid-cols-3 bg-white/5 border border-white/20 h-10 p-1">
+                        <TabsTrigger value="left" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/70 px-2"><AlignLeft className="w-4 h-4" /></TabsTrigger>
+                        <TabsTrigger value="center" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/70 px-2"><AlignCenter className="w-4 h-4" /></TabsTrigger>
+                        <TabsTrigger value="right" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/70 px-2"><AlignRight className="w-4 h-4" /></TabsTrigger>
+                      </TabsList>
+                    </Tabs>
                 </div>
-                {/* Font Weight and Style directly under font selection */}
+                
+                {/* Font Weight and Style */}
                 <div className="grid grid-cols-2 gap-4">
-                  {/* Font Weight Dropdown */}
+                  {/* Font Weight Dropdown - Simplified */}
                   <div>
-                    <Select value={selectedText.weight?.toString() || '600'} onValueChange={(value) => { pushToHistory(); updateElement(selectedText.id, { weight: value }); }}>
+                    <Select value={selectedText.weight?.toString() || '500'} onValueChange={(value) => { pushToHistory(); updateElement(selectedText.id, { weight: value }); }}>
                       <SelectTrigger className="bg-white/10 border-white/20 text-white">
                         <SelectValue placeholder="Weight" />
                       </SelectTrigger>
                       <SelectContent className="bg-black/80 border-white/20 text-white">
-                        {FONT_WEIGHTS[selectedText.font]?.map((weight) => (
-                            <SelectItem key={weight} value={weight}>{weight}</SelectItem>
+                        {Object.entries(WEIGHT_LABELS).map(([label, weight]) => (
+                            <SelectItem key={weight} value={weight}>{label}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -199,11 +224,8 @@ export default function Step3Text({
                       </SelectTrigger>
                       <SelectContent className="bg-black/80 border-white/20 text-white">
                         <SelectItem value="normal-none">Normal</SelectItem>
-                        <SelectItem value="italic-none">Italic</SelectItem>
-                        <SelectItem value="normal-capitalize">Capitalize</SelectItem>
-                        <SelectItem value="normal-uppercase">UPPERCASE</SelectItem>
-                        <SelectItem value="italic-capitalize">Italic Capitalize</SelectItem>
-                        <SelectItem value="italic-uppercase">ITALIC UPPERCASE</SelectItem>
+                        <SelectItem value="italic-none" style={{ fontStyle: 'italic' }}>Italic</SelectItem>
+                        <SelectItem value="normal-uppercase" style={{ textTransform: 'uppercase' }}>UPPERCASE</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -211,65 +233,26 @@ export default function Step3Text({
               </div>
             )}
 
-            {/* Size and Line Height */}
+            {/* Size */}
             <div className="space-y-3 pt-2">
-              <div className="grid grid-cols-2 gap-4">
-                  {/* Size controls */}
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                        <Label className="text-white/80 text-sm font-medium">Size</Label>
-                        <EditableBadge
-                        value={selectedText.size}
-                        onValueChange={(val) => wrappedUpdate({ size: val })}
-                        suffix="px"
-                        max={500}
-                        min={10}
-                        step={1} />
-                    </div>
-                    <Slider
-                    value={[selectedText.size]}
-                    onValueChange={([val]) => wrappedUpdate({ size: val })}
-                    min={10}
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                    <Label className="text-white/80 text-sm font-medium">Size</Label>
+                    <EditableBadge
+                    value={selectedText.size}
+                    onValueChange={(val) => wrappedUpdate({ size: val })}
+                    suffix="px"
                     max={500}
-                    step={1}
-                    className="flex-1 glass-slider" />
-                  </div>
-                  {/* Line Height controls */}
-                  <div className="space-y-2">
-                      <div className="flex justify-between items-center">
-                          <Label className="text-white/80 text-sm font-medium">Line Height</Label>
-                          <EditableBadge
-                            value={(selectedText.lineHeight ?? 1.2).toFixed(1)}
-                            onValueChange={(val) => wrappedUpdate({ lineHeight: parseFloat(val) })}
-                            suffix="x"
-                            min={0.5}
-                            max={3}
-                            step={0.1} />
-                      </div>
-                      <Slider
-                        value={[selectedText.lineHeight ?? 1.2]}
-                        onValueChange={([val]) => wrappedUpdate({ lineHeight: val })}
-                        min={0.5}
-                        max={3}
-                        step={0.1}
-                        className="flex-1 glass-slider" />
-                  </div>
-              </div>
-            </div>
-
-            {/* Alignment & Spacing */}
-            <div className="space-y-3 pt-2">
-              <Label className="text-white/80 text-sm font-medium">Alignment & Spacing</Label>
-              <div className="grid grid-cols-1 gap-4">
-                  <div>
-                      <Tabs value={selectedText.textAlign || 'left'} onValueChange={(val) => wrappedUpdate({ textAlign: val })} className="w-full">
-                          <TabsList className="grid w-full grid-cols-3 bg-white/5 border border-white/20 h-auto p-1">
-                              <TabsTrigger value="left" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/70 p-2 h-full"><AlignLeft className="w-5 h-5" /></TabsTrigger>
-                              <TabsTrigger value="center" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/70 p-2 h-full"><AlignCenter className="w-5 h-5" /></TabsTrigger>
-                              <TabsTrigger value="right" className="data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/70 p-2 h-full"><AlignRight className="w-5 h-5" /></TabsTrigger>
-                          </TabsList>
-                      </Tabs>
-                  </div>
+                    min={10}
+                    step={1} />
+                </div>
+                <Slider
+                value={[selectedText.size]}
+                onValueChange={([val]) => wrappedUpdate({ size: val })}
+                min={10}
+                max={500}
+                step={1}
+                className="flex-1 glass-slider" />
               </div>
             </div>
 
@@ -293,75 +276,99 @@ export default function Step3Text({
               }
             </div>
 
-            {/* Rotation, Opacity & Blur */}
-            <div className="space-y-3 pt-2">
-              <Label className="text-white/80 text-sm font-medium">Effects</Label>
-              <div className="grid grid-cols-3 gap-4">
-                  {/* Rotation */}
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <Label className="text-white/80 text-xs font-medium">Rotation</Label>
-                      <EditableBadge
-                        value={Math.round(selectedText.rotation || 0)}
-                        onValueChange={(val) => wrappedUpdate({ rotation: snapAngle(val) })}
-                        suffix="°"
-                        min={-360}
-                        max={360}
-                      />
-                    </div>
-                    <Slider
-                      value={[selectedText.rotation || 0]}
-                      onValueChange={([val]) => wrappedUpdate({ rotation: snapAngle(val) })}
-                      min={-180}
-                      max={180}
-                      step={1}
-                      className="glass-slider"
+            {/* Advanced Settings */}
+            <Collapsible className="space-y-3 pt-2">
+              <CollapsibleTrigger className="flex items-center justify-between w-full text-white/80 hover:text-white transition-colors">
+                <Label className="text-white/80 text-sm font-medium cursor-pointer">Advanced Settings</Label>
+                <ChevronRight className="w-4 h-4 transition-transform duration-200 data-[state=open]:rotate-90" />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-4 pt-2">
+                {/* Line Height */}
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <Label className="text-white/80 text-sm font-medium">Line Height</Label>
+                    <EditableBadge
+                      value={(selectedText.lineHeight ?? 0.8).toFixed(1)}
+                      onValueChange={(val) => wrappedUpdate({ lineHeight: parseFloat(val) })}
+                      suffix="x"
+                      min={0.5}
+                      max={3}
+                      step={0.1} />
+                  </div>
+                  <Slider
+                    value={[selectedText.lineHeight ?? 0.8]}
+                    onValueChange={([val]) => wrappedUpdate({ lineHeight: val })}
+                    min={0.5}
+                    max={3}
+                    step={0.1}
+                    className="flex-1 glass-slider" />
+                </div>
+
+                {/* Rotation */}
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <Label className="text-white/80 text-sm font-medium">Rotation</Label>
+                    <EditableBadge
+                      value={Math.round(selectedText.rotation || 0)}
+                      onValueChange={(val) => wrappedUpdate({ rotation: snapAngle(val) })}
+                      suffix="°"
+                      min={-360}
+                      max={360}
                     />
                   </div>
+                  <Slider
+                    value={[selectedText.rotation || 0]}
+                    onValueChange={([val]) => wrappedUpdate({ rotation: snapAngle(val) })}
+                    min={-180}
+                    max={180}
+                    step={1}
+                    className="glass-slider"
+                  />
+                </div>
 
-                  {/* Opacity */}
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <Label className="text-white/80 text-xs font-medium">Opacity</Label>
-                      <EditableBadge
-                      value={Math.round((selectedText.opacity ?? 1) * 100)}
-                      onValueChange={(val) => wrappedUpdate({ opacity: val / 100 })}
-                      suffix="%"
-                      max={100}
-                      min={0}
-                      step={1} />
-                    </div>
-                    <Slider
-                    value={[selectedText.opacity ?? 1]}
-                    onValueChange={([val]) => wrappedUpdate({ opacity: val })}
+                {/* Opacity */}
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <Label className="text-white/80 text-sm font-medium">Opacity</Label>
+                    <EditableBadge
+                    value={Math.round((selectedText.opacity ?? 1) * 100)}
+                    onValueChange={(val) => wrappedUpdate({ opacity: val / 100 })}
+                    suffix="%"
+                    max={100}
                     min={0}
-                    max={1}
-                    step={0.01}
-                    className="flex-1 glass-slider" />
+                    step={1} />
                   </div>
+                  <Slider
+                  value={[selectedText.opacity ?? 1]}
+                  onValueChange={([val]) => wrappedUpdate({ opacity: val })}
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  className="flex-1 glass-slider" />
+                </div>
 
-                  {/* Blur */}
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <Label className="text-white/80 text-xs font-medium">Blur</Label>
-                      <EditableBadge
-                      value={selectedText.blur || 0}
-                      onValueChange={(val) => wrappedUpdate({ blur: val })}
-                      suffix="px"
-                      max={20}
-                      min={0}
-                      step={0.5} />
-                    </div>
-                    <Slider
-                    value={[selectedText.blur || 0]}
-                    onValueChange={([val]) => wrappedUpdate({ blur: val })}
-                    min={0}
+                {/* Blur */}
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <Label className="text-white/80 text-sm font-medium">Blur</Label>
+                    <EditableBadge
+                    value={selectedText.blur || 0}
+                    onValueChange={(val) => wrappedUpdate({ blur: val })}
+                    suffix="px"
                     max={20}
-                    step={0.5}
-                    className="flex-1 glass-slider" />
+                    min={0}
+                    step={0.5} />
                   </div>
-              </div>
-            </div>
+                  <Slider
+                  value={[selectedText.blur || 0]}
+                  onValueChange={([val]) => wrappedUpdate({ blur: val })}
+                  min={0}
+                  max={20}
+                  step={0.5}
+                  className="flex-1 glass-slider" />
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
           </div>
         )}
       </div>

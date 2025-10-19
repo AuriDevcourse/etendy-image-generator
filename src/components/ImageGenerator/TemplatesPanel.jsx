@@ -54,9 +54,9 @@ export default function TemplatesPanel({
                 const isDefault = currentUser?.default_template_id === template.id;
                 return (
                   <div key={template.id} className="relative group">
-                    <button 
+                    <div 
                       onClick={() => onLoadTemplate(template)}
-                      className={`w-full p-3 rounded-lg border-2 hover:border-indigo-400 focus:outline-none transition-all duration-300 bg-white/5 hover:bg-white/10 text-left ${isDefault ? 'border-amber-400' : 'border-white/10'}`}
+                      className={`w-full p-3 rounded-lg border-2 hover:border-orange-400 focus:outline-none transition-all duration-300 bg-white/5 hover:bg-white/10 text-left cursor-pointer ${isDefault ? 'border-amber-400' : 'border-white/10'}`}
                     >
                       {template.thumbnail_url ? (
                         <div className="w-full h-16 rounded overflow-hidden mb-2 bg-white/10">
@@ -73,37 +73,37 @@ export default function TemplatesPanel({
                       )}
                       
                       <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 truncate">
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
                           <div 
                             className="w-2.5 h-2.5 rounded-full flex-shrink-0" 
                             style={{ backgroundColor: template.tag_color || '#4b5563' }}
                           />
-                          <p className="text-white/90 font-medium text-xs truncate">{template.name}</p>
+                          <p className="text-white/90 font-medium text-xs truncate" title={template.name}>
+                            {template.name.length > 40 ? template.name.substring(0, 40) + '...' : template.name}
+                          </p>
                         </div>
-                        <div className="flex items-center">
-                            <Button
-                                size="icon"
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                            <button
                                 onClick={(e) => {
                                 e.stopPropagation();
                                 handleStartEdit(template);
                                 }}
-                                className="bg-transparent text-white/60 hover:text-white hover:opacity-75 transition-opacity duration-200 opacity-0 group-hover:opacity-100 flex-shrink-0 h-auto w-auto p-0 mr-1"
+                                className="bg-transparent text-white/60 hover:text-orange-400 transition-colors duration-200 flex-shrink-0 h-auto w-auto p-0"
                             >
                                 <Edit className="w-3.5 h-3.5" />
-                            </Button>
-                            <Button
-                                size="icon"
+                            </button>
+                            <button
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     onSetDefault(template.id);
                                 }}
-                                className={`bg-transparent text-white/60 hover:text-amber-400 transition-colors duration-200 flex-shrink-0 h-auto w-auto p-0 ${isDefault ? 'text-amber-400' : 'opacity-0 group-hover:opacity-100'}`}
+                                className={`bg-transparent text-white/60 hover:text-amber-400 transition-colors duration-200 flex-shrink-0 h-auto w-auto p-0 ${isDefault ? 'text-amber-400 opacity-100' : ''}`}
                             >
                                 <Star className={`w-4 h-4 ${isDefault ? 'fill-current' : ''}`} />
-                            </Button>
+                            </button>
                         </div>
                       </div>
-                    </button>
+                    </div>
                     
                     <Button
                       size="icon"
