@@ -129,10 +129,10 @@ export default function LandingPage() {
 
           {/* Slogan */}
           <p className="text-xl md:text-3xl text-white/90 mb-2 text-center max-w-4xl font-light">
-            Create stunning gradients in seconds
+            Personalize visuals that match your brand
           </p>
           <p className="text-base md:text-lg text-orange-200/60 mb-6 text-center max-w-2xl">
-            Design made simple. No experience needed.
+            Create professional designs in seconds. No experience needed.
           </p>
 
           {/* Call to Action */}
