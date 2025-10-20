@@ -184,7 +184,7 @@ const UserProfile = ({
               {isAdmin && (
                 <Badge variant="secondary" className="bg-red-500/20 text-red-300 border-red-500/30">
                   <Crown className="w-3 h-3 mr-1" />
-                  Admin
+                  {user?.email === 'baciauskas.aurimas@gmail.com' ? 'Super Admin' : 'Admin'}
                 </Badge>
               )}
             </h2>

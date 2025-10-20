@@ -53,7 +53,8 @@ export default function Step5Download({
 
         <div className="space-y-4">
           <div className="text-xs text-white/60">
-            <p>• Downloads as high-quality JPG format</p>
+            <p>• Currently saving in JPG</p>
+            <p>• PNG format coming soon</p>
           </div>
 
           <Button 
@@ -89,9 +90,9 @@ export default function Step5Download({
             </Button>
           )}
 
-          {(onSave || onSaveTemplate) && (
+          {user && (onSave || onSaveTemplate) && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {onSave && (
+              {user && onSave && (
                 <Button 
                   onClick={onSave} 
                   disabled={isSaving} 
@@ -102,7 +103,7 @@ export default function Step5Download({
                 </Button>
               )}
 
-              {onSaveTemplate && (
+              {user && onSaveTemplate && (
                 <Button
                   onClick={() => {
                     const name = prompt('Enter a template name:');

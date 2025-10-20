@@ -3,8 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { Copy, ExternalLink, Trash2, User, LogOut, Edit, Pencil, RefreshCw } from "lucide-react";
-import { presetService, authService } from '../lib/supabase';
+import { Copy, ExternalLink, Trash2, User, LogOut, Edit, Pencil, RefreshCw, Settings } from "lucide-react";
+import { presetService, authService, roleService } from '../lib/supabase';
+import PresetRestrictionsPanel from './ImageGenerator/PresetRestrictionsPanel';
 
 export default function AdminDashboard() {
   const [user, setUser] = useState(null);
@@ -13,6 +14,9 @@ export default function AdminDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [presetName, setPresetName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [showRestrictionsPanel, setShowRestrictionsPanel] = useState(false);
+  const [presetRestrictions, setPresetRestrictions] = useState({});
+  const [editingPresetId, setEditingPresetId] = useState(null);
 
   useEffect(() => {
     checkAuthAndLoadData();
@@ -23,7 +27,8 @@ export default function AdminDashboard() {
       const currentUser = await authService.getCurrentUser();
       if (currentUser) {
         setUser(currentUser);
-        const adminStatus = await presetService.isAdmin(currentUser.email);
+        // Check if user is admin or super admin using new role system
+        const adminStatus = await roleService.isAdmin(currentUser.id);
         setIsAdmin(adminStatus);
         
         if (adminStatus) {
@@ -119,11 +124,14 @@ export default function AdminDashboard() {
       const newPreset = await presetService.createPreset(
         presetName.trim(),
         currentSettings,
-        user.email
+        user.email,
+        presetRestrictions  // Add restrictions
       );
 
       setPresets([newPreset, ...presets]);
       setPresetName('');
+      setPresetRestrictions({});  // Reset restrictions
+      setShowRestrictionsPanel(false);  // Close panel
       alert(`Preset "${newPreset.name}" saved! Share: ${window.location.origin}/p/${newPreset.id}`);
     } catch (error) {
       console.error('Failed to save preset:', error);
@@ -146,6 +154,45 @@ export default function AdminDashboard() {
   const editPreset = (presetId) => {
     // Redirect to main app with preset loaded and edit mode enabled
     window.location.href = `/p/${presetId}?edit=true`;
+  };
+
+  const editPresetRestrictions = (preset) => {
+    setEditingPresetId(preset.id);
+    setPresetName(preset.name);
+    setPresetRestrictions(preset.restrictions || {});
+    setShowRestrictionsPanel(true);
+  };
+
+  const saveEditedRestrictions = async () => {
+    if (!editingPresetId) return;
+    
+    setIsSaving(true);
+    try {
+      await presetService.updatePreset(
+        editingPresetId,
+        null, // Don't update settings, only restrictions
+        null, // Don't verify ownership, just update by ID
+        presetRestrictions
+      );
+      
+      // Update local state
+      setPresets(presets.map(preset => 
+        preset.id === editingPresetId 
+          ? { ...preset, restrictions: presetRestrictions }
+          : preset
+      ));
+      
+      setEditingPresetId(null);
+      setPresetName('');
+      setPresetRestrictions({});
+      setShowRestrictionsPanel(false);
+      alert('Restrictions updated successfully!');
+    } catch (error) {
+      console.error('Failed to update restrictions:', error);
+      alert('Failed to update restrictions. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const renamePreset = async (presetId, currentName) => {
@@ -262,29 +309,40 @@ export default function AdminDashboard() {
         {/* Create Preset */}
         <Card className="p-6 bg-white/10 border-white/20 backdrop-blur-xl">
           <h2 className="text-xl font-semibold text-white mb-4">Create New Preset</h2>
-          <div className="flex gap-4">
-            <div className="flex-1">
-              <Label className="text-white/80 text-sm">Preset Name</Label>
-              <Input
-                value={presetName}
-                onChange={(e) => setPresetName(e.target.value)}
-                placeholder="e.g., Modern Blue Theme"
-                className="bg-white/10 border-white/20 text-white placeholder-white/50"
-              />
+          <div className="space-y-4">
+            <div className="flex gap-4">
+              <div className="flex-1">
+                <Label className="text-white/80 text-sm">Preset Name</Label>
+                <Input
+                  value={presetName}
+                  onChange={(e) => setPresetName(e.target.value)}
+                  placeholder="e.g., Modern Blue Theme"
+                  className="bg-white/10 border-white/20 text-white placeholder-white/50"
+                />
+              </div>
+              <div className="flex items-end gap-2">
+                <Button 
+                  onClick={() => setShowRestrictionsPanel(true)}
+                  disabled={!presetName.trim()}
+                  variant="outline"
+                  className="bg-white/5 border-white/20 text-white hover:bg-white/10"
+                >
+                  <Settings className="w-4 h-4 mr-2" />
+                  Configure Restrictions
+                </Button>
+                <Button 
+                  onClick={saveCurrentAsPreset}
+                  disabled={!presetName.trim() || isSaving}
+                  className="bg-indigo-500 hover:bg-indigo-600"
+                >
+                  {isSaving ? 'Saving...' : 'Save Preset'}
+                </Button>
+              </div>
             </div>
-            <div className="flex items-end">
-              <Button 
-                onClick={saveCurrentAsPreset}
-                disabled={!presetName.trim() || isSaving}
-                className="bg-indigo-500 hover:bg-indigo-600"
-              >
-                {isSaving ? 'Saving...' : 'Save Current Design'}
-              </Button>
-            </div>
+            <p className="text-white/60 text-sm">
+              Configure which tools and features users can access when using this preset link.
+            </p>
           </div>
-          <p className="text-white/60 text-sm mt-2">
-            This will save the current design settings as a preset that can be shared with users.
-          </p>
         </Card>
 
         {/* Presets List */}
@@ -336,6 +394,15 @@ export default function AdminDashboard() {
                       title="Edit Preset"
                     >
                       <Edit className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => editPresetRestrictions(preset)}
+                      className="text-white hover:text-white hover:bg-white/10 p-2"
+                      title="Edit Restrictions"
+                    >
+                      <Settings className="w-4 h-4" />
                     </Button>
                     <Button
                       size="sm"
@@ -396,6 +463,52 @@ export default function AdminDashboard() {
           </div>
         </Card>
       </div>
+
+      {/* Restrictions Configuration Modal */}
+      {showRestrictionsPanel && (
+        <>
+          {/* Backdrop */}
+          <div 
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100]"
+            onClick={() => setShowRestrictionsPanel(false)}
+          />
+          
+          {/* Modal */}
+          <div className="fixed inset-0 z-[101] flex items-center justify-center p-6">
+            <div 
+              className="bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 rounded-2xl border border-white/20 max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="p-6 border-b border-white/10">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-2xl font-bold text-white">Configure Preset Restrictions</h2>
+                    <p className="text-white/60 text-sm mt-1">Preset: {presetName}</p>
+                  </div>
+                  <Button
+                    onClick={() => setShowRestrictionsPanel(false)}
+                    variant="outline"
+                    className="bg-white/5 border-white/20 text-white hover:bg-white/10"
+                  >
+                    Close
+                  </Button>
+                </div>
+              </div>
+              
+              {/* Content */}
+              <div className="flex-1 overflow-y-auto p-6">
+                <PresetRestrictionsPanel
+                  restrictions={presetRestrictions}
+                  onRestrictionsChange={setPresetRestrictions}
+                  onSave={editingPresetId ? saveEditedRestrictions : saveCurrentAsPreset}
+                  isSaving={isSaving}
+                />
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

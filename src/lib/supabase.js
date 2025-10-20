@@ -34,17 +34,18 @@ export const presetService = {
   },
 
   // Create new preset (admin only)
-  async createPreset(name, settings, adminEmail) {
+  async createPreset(name, settings, adminEmail, restrictions = {}) {
     // Clean settings before saving
     const cleanSettings = this.cleanSettingsForDatabase(settings);
     
-    const { data, error } = await supabase
+    const { data, error} = await supabase
       .from('presets')
       .insert([
         {
           name,
           settings: cleanSettings,
           admin_email: adminEmail,
+          restrictions: restrictions,
           is_active: true
         }
       ])
@@ -70,19 +71,31 @@ export const presetService = {
   },
 
   // Update existing preset (with user ownership verification)
-  async updatePreset(presetId, settings, userId = null) {
+  async updatePreset(presetId, settings, userId = null, restrictions = null) {
     console.log('🔄 Updating preset:', presetId);
     console.log('🔄 New settings:', settings);
     console.log('🔄 User ID:', userId);
     
-    // Clean and serialize the settings to ensure JSON compatibility
-    const cleanSettings = this.cleanSettingsForDatabase(settings);
-    console.log('🧹 Cleaned settings:', cleanSettings);
+    // Build update object
+    const updateData = {};
+    
+    // Only update settings if provided
+    if (settings !== null) {
+      const cleanSettings = this.cleanSettingsForDatabase(settings);
+      console.log('🧹 Cleaned settings:', cleanSettings);
+      updateData.settings = cleanSettings;
+    }
+    
+    // Only update restrictions if provided
+    if (restrictions !== null) {
+      updateData.restrictions = restrictions;
+      console.log('🔒 Updating restrictions:', restrictions);
+    }
     
     // Build the update query
     let query = supabase
       .from('presets')
-      .update({ settings: cleanSettings })
+      .update(updateData)
       .eq('id', presetId);
     
     // If userId is provided, verify ownership
@@ -801,6 +814,136 @@ export const templateService = {
       return { migrated, skipped }
     } catch (error) {
       console.error('❌ Failed to migrate templates:', error)
+      throw error
+    }
+  }
+}
+
+// Role Management Service for Super Admin
+export const roleService = {
+  // Get current user's role
+  async getUserRole(userId) {
+    try {
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('role, granted_by, created_at')
+        .eq('user_id', userId)
+        .single()
+      
+      if (error) {
+        // If no role found, user is regular user
+        if (error.code === 'PGRST116') {
+          return { role: 'user', granted_by: null, created_at: null }
+        }
+        throw error
+      }
+      
+      return data
+    } catch (error) {
+      console.error('❌ Failed to get user role:', error)
+      return { role: 'user', granted_by: null, created_at: null }
+    }
+  },
+
+  // Check if user is super admin
+  async isSuperAdmin(userId) {
+    try {
+      const { data } = await supabase
+        .rpc('is_super_admin', { check_user_id: userId })
+      
+      return data === true
+    } catch (error) {
+      console.error('❌ Failed to check super admin status:', error)
+      return false
+    }
+  },
+
+  // Check if user is admin or super admin
+  async isAdmin(userId) {
+    try {
+      const { data } = await supabase
+        .rpc('is_admin', { check_user_id: userId })
+      
+      return data === true
+    } catch (error) {
+      console.error('❌ Failed to check admin status:', error)
+      return false
+    }
+  },
+
+  // Get all users with their roles (super admin only)
+  async getAllUsersWithRoles() {
+    try {
+      // First, try to get all users from auth.users via a database function
+      // This requires a helper function in Supabase
+      const { data: allUsers, error: usersError } = await supabase
+        .rpc('get_all_users_with_roles')
+      
+      if (!usersError && allUsers) {
+        return allUsers
+      }
+      
+      // Fallback: Just get from user_roles table
+      const { data: roles, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('*')
+        .order('created_at', { ascending: false })
+      
+      if (rolesError) throw rolesError
+      
+      // Return roles, marking users without roles as 'user'
+      return roles || []
+    } catch (error) {
+      console.error('❌ Failed to get users with roles:', error)
+      throw error
+    }
+  },
+
+  // Promote user to admin (super admin only)
+  async promoteToAdmin(userId, grantedBy) {
+    try {
+      const { data, error } = await supabase
+        .from('user_roles')
+        .upsert({
+          user_id: userId,
+          role: 'admin',
+          granted_by: grantedBy,
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'user_id'
+        })
+        .select()
+        .single()
+      
+      if (error) throw error
+      
+      console.log('✅ User promoted to admin:', userId)
+      return data
+    } catch (error) {
+      console.error('❌ Failed to promote user:', error)
+      throw error
+    }
+  },
+
+  // Demote user to regular user (super admin only)
+  async demoteToUser(userId) {
+    try {
+      const { data, error } = await supabase
+        .from('user_roles')
+        .update({
+          role: 'user',
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', userId)
+        .select()
+        .single()
+      
+      if (error) throw error
+      
+      console.log('✅ User demoted to regular user:', userId)
+      return data
+    } catch (error) {
+      console.error('❌ Failed to demote user:', error)
       throw error
     }
   }

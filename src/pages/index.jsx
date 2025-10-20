@@ -5,6 +5,8 @@ import ImageGenerator from "./ImageGenerator";
 import AdminPage from "./admin";
 import TestPage from "./test";
 import PresetsDashboard from "./PresetsDashboard";
+import UserManagementPage from "./UserManagementPage";
+import AdminDashboard from "../components/AdminDashboard";
 
 import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
 
@@ -51,6 +53,16 @@ function PagesContent() {
     // Handle preset routes /p/preset-id
     if (location.pathname.startsWith('/p/')) {
         return <ImageGenerator />;
+    }
+    
+    // Handle user management route /admin/users
+    if (location.pathname === '/admin/users') {
+        return <UserManagementPage />;
+    }
+    
+    // Handle admin dashboard route /admin/presets
+    if (location.pathname === '/admin/presets') {
+        return <AdminDashboard />;
     }
     
     return (

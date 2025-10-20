@@ -4,7 +4,7 @@ import { GeneratedImage } from "@/api/entities";
 import { Template } from "@/api/entities";
 import { User } from "@/api/entities"; // Assuming User entity exists for role checking
 import { AdminSettings } from '@/api/entities'; // Import AdminSettings
-import { supabase, presetService, authService, userService, adminSettingsService, templateService } from '../lib/supabase';
+import { supabase, presetService, authService, userService, adminSettingsService, templateService, roleService } from '../lib/supabase';
 
 import CanvasPreview from '../components/ImageGenerator/CanvasPreview';
 import Step1Background from '../components/ImageGenerator/steps/Step1_Background';
@@ -171,6 +171,7 @@ export default function ImageGeneratorPage() {
   const [backgroundImageScale, setBackgroundImageScale] = useState(1.0);
   const [backgroundImageX, setBackgroundImageX] = useState(0);
   const [backgroundImageY, setBackgroundImageY] = useState(0);
+  const [backgroundImageBlur, setBackgroundImageBlur] = useState(0); // Blur amount in pixels
   
   // Overlay State - Remains global
   const [overlayType, setOverlayType] = useState('solid');
@@ -228,8 +229,10 @@ export default function ImageGeneratorPage() {
   const [isLoadingPreset, setIsLoadingPreset] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isSavingPreset, setIsSavingPreset] = useState(false);
+  const [presetRestrictions, setPresetRestrictions] = useState(null);
   const [adminUser, setAdminUser] = useState(null);
   const [isCheckingAdmin, setIsCheckingAdmin] = useState(false);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
   // Template State
   const [templates, setTemplates] = useState([]);
@@ -382,7 +385,7 @@ export default function ImageGeneratorPage() {
       elements: JSON.parse(JSON.stringify(elements)), // Deep copy of elements
       backgroundType, gradientColor1, gradientColor2, gradientAngle, backgroundColor,
       backgroundImage, backgroundImageNaturalDimensions, backgroundImageScale,
-      backgroundImageX, backgroundImageY,
+      backgroundImageX, backgroundImageY, backgroundImageBlur,
       overlayType, overlayColor, overlayOpacity, overlayGradientColor1,
       overlayGradientOpacity1, overlayGradientColor2, overlayGradientOpacity2,
       overlayGradientAngle,
@@ -390,7 +393,7 @@ export default function ImageGeneratorPage() {
   }, [
       elements, // Now tracks all canvas elements
       backgroundType, gradientColor1, gradientColor2, gradientAngle, backgroundColor,
-      backgroundImage, backgroundImageNaturalDimensions, backgroundImageScale, backgroundImageX, backgroundImageY,
+      backgroundImage, backgroundImageNaturalDimensions, backgroundImageScale, backgroundImageX, backgroundImageY, backgroundImageBlur,
       overlayType, overlayColor, overlayOpacity, overlayGradientColor1, overlayGradientOpacity1, 
       overlayGradientColor2, overlayGradientOpacity2, overlayGradientAngle,
   ]);
@@ -539,6 +542,7 @@ export default function ImageGeneratorPage() {
       setBackgroundImageScale(data.backgroundImageScale || 1.0);
       setBackgroundImageX(data.backgroundImageX || 0);
       setBackgroundImageY(data.backgroundImageY || 0);
+      setBackgroundImageBlur(data.backgroundImageBlur || 0);
       
       // Load overlay settings from template
       setOverlayType(data.overlayType || 'solid');
@@ -1010,6 +1014,7 @@ export default function ImageGeneratorPage() {
     setBackgroundImageScale(stateToRestore.backgroundImageScale);
     setBackgroundImageX(stateToRestore.backgroundImageX);
     setBackgroundImageY(stateToRestore.backgroundImageY);
+    setBackgroundImageBlur(stateToRestore.backgroundImageBlur || 0);
     setOverlayType(stateToRestore.overlayType);
     setOverlayColor(stateToRestore.overlayColor);
     setOverlayOpacity(stateToRestore.overlayOpacity);
@@ -1310,6 +1315,12 @@ export default function ImageGeneratorPage() {
           if (preset && preset.settings) {
             console.log('✅ Preset loaded:', preset.name);
             console.log('📋 Preset settings:', preset.settings);
+            console.log('🔒 Preset restrictions:', preset.restrictions);
+            
+            // Store preset restrictions
+            if (preset.restrictions) {
+              setPresetRestrictions(preset.restrictions);
+            }
             
             // Apply preset settings
             const settings = preset.settings;
@@ -1389,15 +1400,26 @@ export default function ImageGeneratorPage() {
       try {
         const user = await authService.getCurrentUser();
         if (user && user.email) {
-          const isAdminUser = await presetService.isAdmin(user.email);
-          if (isAdminUser) {
+          // Check user role from new role system
+          const isSuperAdminUser = await roleService.isSuperAdmin(user.id);
+          const isAdminUser = await roleService.isAdmin(user.id); // This checks for both admin and super_admin
+          
+          if (isSuperAdminUser) {
             setAdminUser(user);
             setIsAdmin(true);
+            setIsSuperAdmin(true);
+            console.log('✅ Super Admin user authenticated:', user.email);
+          } else if (isAdminUser) {
+            // Regular admin (not super admin)
+            setAdminUser(user);
+            setIsAdmin(true);
+            setIsSuperAdmin(false);
             console.log('✅ Admin user authenticated:', user.email);
           } else {
             // Regular user
             setRegularUser(user);
             setCurrentUser(user);
+            setIsSuperAdmin(false);
             console.log('✅ Regular user authenticated:', user.email);
             
             // Initialize user profile if first time
@@ -1719,7 +1741,17 @@ export default function ImageGeneratorPage() {
           const naturalHeight = bgImg.naturalHeight || bgImg.height;
           const scaledWidth = naturalWidth * backgroundImageScale;
           const scaledHeight = naturalHeight * backgroundImageScale;
+          
+          // Apply blur filter if set
+          if (backgroundImageBlur > 0) {
+            ctx.filter = `blur(${backgroundImageBlur}px)`;
+          }
+          
           ctx.drawImage(bgImg, backgroundImageX, backgroundImageY, scaledWidth, scaledHeight);
+          
+          // Reset filter
+          ctx.filter = 'none';
+          
           resolve();
         };
         bgImg.onerror = () => {
@@ -1996,7 +2028,7 @@ export default function ImageGeneratorPage() {
   }, [
     elements, canvasWidth, canvasHeight, backgroundType, backgroundImage, backgroundColor, gradientColor1, gradientColor2, gradientAngle,
     overlayType, overlayColor, overlayOpacity, overlayGradientColor1, overlayGradientOpacity1, overlayGradientColor2, overlayGradientOpacity2, overlayGradientAngle,
-    backgroundImageScale, backgroundImageX, backgroundImageY 
+    backgroundImageScale, backgroundImageX, backgroundImageY, backgroundImageBlur
   ]);
 
   const handleSaveTemplate = useCallback(async (templateName) => {
@@ -2005,12 +2037,27 @@ export default function ImageGeneratorPage() {
     console.log('👤 User:', currentUser?.email);
     console.log('📍 Current preset:', currentPreset?.id, currentPreset?.name);
     
+    // Check if user is logged in (regular user or admin)
+    const loggedInUser = currentUser || adminUser || regularUser;
+    
     if (!currentPreset?.id) {
+      // Special handling for admins - offer to go to preset dashboard
+      if (adminUser) {
+        const goToPresets = window.confirm(
+          '⚠️ No preset selected!\n\n' +
+          'To save templates, you need to work within a preset.\n\n' +
+          'Would you like to go to the Preset Dashboard to create or edit a preset?'
+        );
+        if (goToPresets) {
+          window.location.href = '/admin/presets';
+        }
+        return;
+      }
       alert('Please select a preset first');
       return;
     }
     
-    if (!currentUser?.id) {
+    if (!loggedInUser?.id) {
       alert('Please sign in to save templates');
       return;
     }
@@ -2101,6 +2148,7 @@ export default function ImageGeneratorPage() {
         backgroundImageScale, 
         backgroundImageX, 
         backgroundImageY,
+        backgroundImageBlur,
         overlayType, 
         overlayColor, 
         overlayOpacity, 
@@ -2116,7 +2164,7 @@ export default function ImageGeneratorPage() {
       // Save to database
       await templateService.saveTemplate(
         currentPreset.id,
-        currentUser.id,
+        loggedInUser.id,
         templateName,
         templateData,
         dataUrl // thumbnail
@@ -2153,7 +2201,7 @@ export default function ImageGeneratorPage() {
       setIsSavingTemplate(false);
       console.log('🏁 Template save operation completed');
     }
-  }, [elements, canvasWidth, canvasHeight, backgroundType, gradientColor1, gradientColor2, gradientAngle, backgroundColor, backgroundImage, backgroundImageScale, backgroundImageX, backgroundImageY, overlayType, overlayColor, overlayOpacity, overlayGradientColor1, overlayGradientOpacity1, overlayGradientColor2, overlayGradientOpacity2, overlayGradientAngle, backgroundImageNaturalDimensions, drawFinalImage, currentPreset, currentUser, loadTemplates]);
+  }, [elements, canvasWidth, canvasHeight, backgroundType, gradientColor1, gradientColor2, gradientAngle, backgroundColor, backgroundImage, backgroundImageScale, backgroundImageX, backgroundImageY, overlayType, overlayColor, overlayOpacity, overlayGradientColor1, overlayGradientOpacity1, overlayGradientColor2, overlayGradientOpacity2, overlayGradientAngle, backgroundImageNaturalDimensions, drawFinalImage, currentPreset, currentUser, adminUser, regularUser, loadTemplates]);
 
   const handleDeleteTemplate = useCallback(async (templateId) => {
     try {
@@ -2695,21 +2743,21 @@ export default function ImageGeneratorPage() {
             <Button 
               onClick={(e) => { e.stopPropagation(); toggleUserProfile(); }}
               className="w-12 h-12 bg-red-500/20 border border-red-500/30 rounded-xl backdrop-blur-xl flex items-center justify-center hover:bg-red-500/30 transition-all duration-300 text-red-300"
-              title={`Admin Account: ${adminUser.email}`}
+              title={`Admin Profile - ${adminUser.email} - View stats, preferences, and account details`}
             >
               <UserIcon className="w-6 h-6" />
             </Button>
             <Button 
               onClick={(e) => { e.stopPropagation(); toggleAdminPanel(); }}
               className="w-12 h-12 bg-red-500/20 border border-red-500/30 rounded-xl backdrop-blur-xl flex items-center justify-center hover:bg-red-500/30 transition-all duration-300 text-red-300"
-              title="Admin Settings"
+              title="Admin Settings - Configure fonts, backgrounds, controls, and preset restrictions"
             >
               <Settings className="w-6 h-6" />
             </Button>
             <Button 
               onClick={(e) => { e.stopPropagation(); handleAdminLogout(); }}
               className="w-12 h-12 bg-gray-500/20 border border-gray-500/30 rounded-xl backdrop-blur-xl flex items-center justify-center hover:bg-gray-500/30 transition-all duration-300 text-gray-300"
-              title={`Logout ${adminUser.email}`}
+              title={`Sign out from admin account - ${adminUser.email}`}
             >
               <LogOut className="w-6 h-6" />
             </Button>
@@ -2719,24 +2767,25 @@ export default function ImageGeneratorPage() {
             <Button 
               onClick={(e) => { e.stopPropagation(); toggleUserProfile(); }}
               className="w-12 h-12 bg-orange-500/20 border border-orange-500/30 rounded-xl backdrop-blur-xl flex items-center justify-center hover:bg-orange-500/30 transition-all duration-300 text-orange-300"
-              title={`Account: ${regularUser.email}`}
+              title={`View Profile & Settings - ${regularUser.email} - Track your stats, manage preferences, and view account info`}
             >
               <UserIcon className="w-6 h-6" />
             </Button>
             <Button 
               onClick={(e) => { e.stopPropagation(); handleUserLogout(); }}
               className="w-12 h-12 bg-gray-500/20 border border-gray-500/30 rounded-xl backdrop-blur-xl flex items-center justify-center hover:bg-gray-500/30 transition-all duration-300 text-gray-300"
-              title={`Logout ${regularUser.email}`}
+              title={`Sign out from ${regularUser.email} - Your templates and gallery are saved in the cloud`}
             >
               <LogOut className="w-6 h-6" />
             </Button>
           </div>
         ) : (
           <Button 
+            data-tour="sign-in-button"
             onClick={(e) => { e.stopPropagation(); handleUserLogin(); }}
             disabled={isCheckingAdmin}
             className="px-4 py-2 bg-orange-500/20 border border-orange-500/30 rounded-xl backdrop-blur-xl flex items-center gap-2 hover:bg-orange-500/30 transition-all duration-300 text-orange-300"
-            title="Sign in with Google"
+            title="Sign in with Google to unlock: Save Templates, Save to Gallery, Cross-device Sync, Track Statistics, and more!"
           >
             <UserIcon className="w-5 h-5" />
             {isCheckingAdmin ? 'Checking...' : 'Sign In'}
@@ -2764,6 +2813,7 @@ export default function ImageGeneratorPage() {
                   onSettingChange={handleAdminSettingsChange}
                   onSave={saveAdminSettings}
                   adminUser={adminUser}
+                  isSuperAdmin={isSuperAdmin}
                   isSaving={isSavingAdminSettings}
                   hasUnsavedChanges={hasUnsavedChanges}
                   showSavedMessage={showSavedMessage}
@@ -2804,9 +2854,6 @@ export default function ImageGeneratorPage() {
 
       {/* Control Icons - Fixed in corner */}
       <div className="fixed top-4 right-4 z-30 flex items-start gap-2">
-        {/* Keyboard Shortcuts Help */}
-        <KeyboardShortcutsHelp />
-        
         {/* Templates Panel Control - Hide if disabled */}
         {(!adminSettings || adminSettings.generalControls?.templatesEnabled !== false) && (
           <div className="relative">
@@ -2814,6 +2861,7 @@ export default function ImageGeneratorPage() {
               data-tour="templates-button"
               onClick={(e) => { e.stopPropagation(); handleTemplatesPanelToggle(); }}
               className="w-12 h-12 bg-white/20 border border-white/30 rounded-xl backdrop-blur-xl flex items-center justify-center transition-opacity hover:opacity-80 text-white relative shadow-lg"
+              title="Templates - Save & load design templates (max 4 per preset, requires login)"
             >
               <Save className="w-6 h-6" />
             </button>
@@ -2854,6 +2902,7 @@ export default function ImageGeneratorPage() {
               data-tour="layers-button"
               onClick={(e) => { e.stopPropagation(); handleLayersPanelToggle(); }}
               className="w-12 h-12 bg-white/20 border border-white/30 rounded-xl backdrop-blur-xl flex items-center justify-center transition-opacity hover:opacity-80 text-white relative shadow-lg"
+              title="Layers - View, reorder, lock, and manage all canvas elements"
             >
               <Layers className="w-6 h-6" />
             </button>
@@ -2893,6 +2942,7 @@ export default function ImageGeneratorPage() {
               data-tour="gallery-button"
               onClick={(e) => { e.stopPropagation(); handleGalleryPanelToggle(); }}
               className="w-12 h-12 bg-white/20 border border-white/30 rounded-xl backdrop-blur-xl flex items-center justify-center transition-opacity hover:opacity-80 text-white relative shadow-lg"
+              title="Gallery - View & manage saved images (requires login, syncs across devices)"
             >
               <Heart className="w-6 h-6" />
               {showGalleryDot && galleryImages.length > 0 && (
@@ -2957,6 +3007,7 @@ export default function ImageGeneratorPage() {
                 backgroundImageScale={backgroundImageScale} 
                 backgroundImageX={backgroundImageX} 
                 backgroundImageY={backgroundImageY}
+                backgroundImageBlur={backgroundImageBlur}
                 setBackgroundImageX={(val) => { pushToHistory(); setBackgroundImageX(val); }}
                 setBackgroundImageY={(val) => { pushToHistory(); setBackgroundImageY(val); }}
                 backgroundImageNaturalDimensions={backgroundImageNaturalDimensions}
@@ -3010,7 +3061,8 @@ export default function ImageGeneratorPage() {
                 {/* Background Panel Tab */}
                 {adminSettings?.backgroundControls?.locked !== true && (
                     <button data-tour="background-tab" onClick={() => setActiveControlPanel('background')} 
-                            className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg text-xs font-medium transition-opacity ${activeControlPanel === 'background' ? 'bg-orange-500 text-white shadow-lg' : 'text-white/70 hover:opacity-80'}`}>
+                            className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg text-xs font-medium transition-opacity ${activeControlPanel === 'background' ? 'bg-orange-500 text-white shadow-lg' : 'text-white/70 hover:opacity-80'}`}
+                            title="Background - Set colors, gradients, or images. Add overlays and blur effects">
                         <Palette className="w-5 h-5 mb-1" />
                         Background
                     </button>
@@ -3018,32 +3070,40 @@ export default function ImageGeneratorPage() {
                 {/* Image Panel Tab */}
                 {(!adminSettings || adminSettings.imageControls?.uploadEnabled !== false) && (
                     <button data-tour="image-tab" onClick={() => setActiveControlPanel('image')} 
-                            className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg text-xs font-medium transition-opacity ${activeControlPanel === 'image' ? 'bg-orange-500 text-white shadow-lg' : 'text-white/70 hover:opacity-80'}`}>
+                            className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg text-xs font-medium transition-opacity ${activeControlPanel === 'image' ? 'bg-orange-500 text-white shadow-lg' : 'text-white/70 hover:opacity-80'}`}
+                            title="Image - Upload, crop, resize, and style images with borders and effects">
                         <ImageIcon className="w-5 h-5 mb-1" />
                         Image
                     </button>
                 )}
                 {/* Text Panel Tab */}
                 <button data-tour="text-tab" onClick={() => setActiveControlPanel('text')} 
-                        className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg text-xs font-medium transition-opacity ${activeControlPanel === 'text' ? 'bg-orange-500 text-white shadow-lg' : 'text-white/70 hover:opacity-80'}`}>
+                        className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg text-xs font-medium transition-opacity ${activeControlPanel === 'text' ? 'bg-orange-500 text-white shadow-lg' : 'text-white/70 hover:opacity-80'}`}
+                        title="Text - Add text with custom fonts, colors, gradients, and transformations">
                     <Type className="w-5 h-5 mb-1" />
                     Text
                 </button>
                 {/* Elements Panel Tab */}
-                {(adminSettings?.shapeControls?.rectangleEnabled ||
+                {((presetRestrictions?.shapeControls?.rectangleEnabled !== false ||
+                  presetRestrictions?.shapeControls?.circleEnabled !== false ||
+                  presetRestrictions?.shapeControls?.lineEnabled !== false ||
+                  presetRestrictions?.shapeControls?.starEnabled !== false) ||
+                  (!presetRestrictions && (adminSettings?.shapeControls?.rectangleEnabled ||
                   adminSettings?.shapeControls?.circleEnabled ||
                   adminSettings?.shapeControls?.lineEnabled ||
-                  adminSettings?.shapeControls?.starEnabled
+                  adminSettings?.shapeControls?.starEnabled))
                 ) && (
                     <button data-tour="elements-tab" onClick={() => setActiveControlPanel('elements')} 
-                            className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg text-xs font-medium transition-opacity ${activeControlPanel === 'elements' ? 'bg-orange-500 text-white shadow-lg' : 'text-white/70 hover:opacity-80'}`}>
+                            className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg text-xs font-medium transition-opacity ${activeControlPanel === 'elements' ? 'bg-orange-500 text-white shadow-lg' : 'text-white/70 hover:opacity-80'}`}
+                            title="Elements - Add shapes (rectangles, circles, lines, stars) with colors and effects">
                         <Shapes className="w-5 h-5 mb-1" />
                         Elements
                     </button>
                 )}
                 {/* Download Panel Tab */}
                 <button data-tour="download-tab" onClick={() => setActiveControlPanel('download')} 
-                        className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg text-xs font-medium transition-opacity ${activeControlPanel === 'download' ? 'bg-orange-500 text-white shadow-lg' : 'text-white/70 hover:opacity-80'}`}>
+                        className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg text-xs font-medium transition-opacity ${activeControlPanel === 'download' ? 'bg-orange-500 text-white shadow-lg' : 'text-white/70 hover:opacity-80'}`}
+                        title="Download - Export as PDF (PNG coming soon) or save to gallery (requires login)">
                     <Download className="w-5 h-5 mb-1" />
                     Download
                 </button>
@@ -3071,6 +3131,8 @@ export default function ImageGeneratorPage() {
                     setBackgroundImageX={(val) => { pushToHistory(); setBackgroundImageX(val); }} 
                     backgroundImageY={backgroundImageY} 
                     setBackgroundImageY={(val) => { pushToHistory(); setBackgroundImageY(val); }}
+                    backgroundImageBlur={backgroundImageBlur}
+                    setBackgroundImageBlur={(val) => { pushToHistory(); setBackgroundImageBlur(val); }}
                     backgroundImageNaturalDimensions={backgroundImageNaturalDimensions} 
                     setBackgroundImageNaturalDimensions={setBackgroundImageNaturalDimensions}
                     overlayType={overlayType} 
@@ -3130,10 +3192,14 @@ export default function ImageGeneratorPage() {
                   />
                 )}
 
-                {activeControlPanel === 'elements' && (adminSettings?.shapeControls?.rectangleEnabled ||
+                {activeControlPanel === 'elements' && ((presetRestrictions?.shapeControls?.rectangleEnabled !== false ||
+                  presetRestrictions?.shapeControls?.circleEnabled !== false ||
+                  presetRestrictions?.shapeControls?.lineEnabled !== false ||
+                  presetRestrictions?.shapeControls?.starEnabled !== false) ||
+                  (!presetRestrictions && (adminSettings?.shapeControls?.rectangleEnabled ||
                   adminSettings?.shapeControls?.circleEnabled ||
                   adminSettings?.shapeControls?.lineEnabled ||
-                  adminSettings?.shapeControls?.starEnabled
+                  adminSettings?.shapeControls?.starEnabled))
                 ) && (
                   <Step4Elements 
                     elements={elements}
@@ -3146,7 +3212,7 @@ export default function ImageGeneratorPage() {
                     canvasHeight={canvasHeight}
                     pushToHistory={pushToHistory}
                     removeElement={removeElement}
-                    adminSettings={adminSettings}
+                    adminSettings={presetRestrictions || adminSettings}
                   />
                 )}
 
@@ -3273,21 +3339,26 @@ export default function ImageGeneratorPage() {
         <TooltipTour onComplete={() => setShowTooltipTour(false)} />
       )}
 
-      {/* Quick Tooltips Help */}
-      <QuickTooltips />
-
-      {/* Grid Toggle Button */}
-      <button
-        onClick={() => setShowGrid(!showGrid)}
-        className={`fixed bottom-4 right-20 z-[9999] w-14 h-14 rounded-full ${
-          showGrid ? 'bg-orange-500' : 'bg-white/10'
-        } hover:bg-orange-600 text-white shadow-2xl flex items-center justify-center transition-all duration-300 hover:scale-110 border-2 ${
-          showGrid ? 'border-orange-400' : 'border-white/20'
-        } backdrop-blur-xl`}
-        title={showGrid ? "Hide Grid" : "Show Grid"}
-      >
-        <Grid className={`w-6 h-6 ${!showGrid && 'opacity-50'}`} />
-      </button>
+      {/* Bottom Right Controls - All 3 icons together */}
+      <div className="fixed bottom-4 right-4 z-[9999] flex flex-row items-center gap-2">
+        {/* 1. Keyboard Shortcuts */}
+        <KeyboardShortcutsHelp />
+        
+        {/* 2. Grid Toggle */}
+        <button
+          data-tour="grid-toggle-button"
+          onClick={() => setShowGrid(!showGrid)}
+          className={`w-12 h-12 rounded-xl ${
+            showGrid ? 'bg-orange-500' : 'bg-white/20'
+          } hover:bg-orange-600 border border-white/30 backdrop-blur-xl flex items-center justify-center transition-all hover:opacity-80 text-white shadow-lg`}
+          title={showGrid ? "Hide Grid Overlay - Grid helps align elements precisely" : "Show Grid Overlay - Visual guide for precise positioning (won't appear in exports)"}
+        >
+          <Grid className="w-6 h-6" />
+        </button>
+        
+        {/* 3. Quick Help */}
+        <QuickTooltips />
+      </div>
 
       {/* Notification */}
       {notification && (

@@ -5,10 +5,11 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Type, Brush, Image as ImageIcon, Shapes, Grid, Palette, Upload, Settings, Download, RotateCw, Expand, Database } from 'lucide-react';
+import { Type, Brush, Image as ImageIcon, Shapes, Grid, Palette, Upload, Settings, Download, RotateCw, Expand, Database, Users } from 'lucide-react';
 import ColorPicker from './ColorPicker';
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileUploadArea } from './FileUploadArea';
+import UserManagement from '../UserManagement/UserManagement';
 
 const FONT_FAMILIES = [
   "BBH Sans Bogle",
@@ -334,7 +335,7 @@ const LockedPageBackgroundSettings = ({ settings, onSettingChange, section }) =>
 };
 
 
-export default function AdminPanel({ settings, onSettingChange, onSave, isSaving, hasUnsavedChanges, showSavedMessage, adminUser }) {
+export default function AdminPanel({ settings, onSettingChange, onSave, isSaving, hasUnsavedChanges, showSavedMessage, adminUser, isSuperAdmin }) {
   const handleNestedChange = (section, key, value) => {
     onSettingChange({
       ...settings,
@@ -392,12 +393,48 @@ export default function AdminPanel({ settings, onSettingChange, onSave, isSaving
 
       <div className="admin-scroll space-y-6 max-h-[80vh] overflow-y-auto px-6 py-6">
         <div className="space-y-3">
-          <h2 className="text-lg font-semibold text-white">Admin Controls</h2>
+          <h2 className="text-lg font-semibold text-white">
+            {isSuperAdmin ? 'Super Admin Controls' : 'Admin Panel'}
+          </h2>
           <p className="text-sm text-white/70">
-            Control which features are visible to regular users. Changes apply on page refresh.
+            {isSuperAdmin 
+              ? 'Control which features are visible to regular users. Changes apply on page refresh.'
+              : 'Manage your presets and configurations. Contact super admin for advanced settings.'
+            }
           </p>
         </div>
 
+        {/* Admin Quick Links */}
+        <div className="mb-6 space-y-3">
+          {/* Preset Management - All Admins */}
+          <Button
+            onClick={() => window.location.href = '/admin/presets'}
+            className="w-full py-6 text-white bg-gradient-to-r from-blue-500/20 to-indigo-500/20 border border-blue-500/30 hover:from-blue-500/30 hover:to-indigo-500/30 transition-all flex items-center justify-center gap-3 text-lg"
+          >
+            <Database className="w-6 h-6" />
+            <div className="text-left">
+              <div className="font-semibold">Preset Management</div>
+              <div className="text-xs text-white/70">Create and configure presets with restrictions</div>
+            </div>
+          </Button>
+
+          {/* User Management - Super Admin Only */}
+          {isSuperAdmin && (
+            <Button
+              onClick={() => window.location.href = '/admin/users'}
+              className="w-full py-6 text-white bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 hover:from-purple-500/30 hover:to-pink-500/30 transition-all flex items-center justify-center gap-3 text-lg"
+            >
+              <Users className="w-6 h-6" />
+              <div className="text-left">
+                <div className="font-semibold">User Management</div>
+                <div className="text-xs text-white/70">Manage user roles and permissions</div>
+              </div>
+            </Button>
+          )}
+        </div>
+
+        {/* All controls - Super Admin Only */}
+        {isSuperAdmin && (
         <Accordion type="multiple" className="space-y-4">
           <AccordionItem value="pageBackground" className="bg-white/5 rounded-lg border border-white/10">
             <AccordionTrigger className="px-6 py-4 text-white/90 hover:text-white hover:no-underline">
@@ -632,6 +669,7 @@ export default function AdminPanel({ settings, onSettingChange, onSave, isSaving
             </AccordionContent>
           </AccordionItem>
         </Accordion>
+        )}
 
         <div className="pt-4 space-y-3">
           {/* Preset Management Button */}
@@ -648,7 +686,8 @@ export default function AdminPanel({ settings, onSettingChange, onSave, isSaving
             My Presets
           </Button>
 
-          {/* Save Settings Button */}
+          {/* Save Settings Button - Super Admin Only */}
+          {isSuperAdmin && (
           <Button
             onClick={(e) => {
               console.log('🎯 ADMIN PANEL: Save Settings button clicked!');
@@ -673,6 +712,7 @@ export default function AdminPanel({ settings, onSettingChange, onSave, isSaving
             }`}>
             {showSavedMessage ? 'Saved!' : isSaving ? 'Saving...' : hasUnsavedChanges ? 'Save Changes *' : 'Save Settings'}
           </Button>
+          )}
         </div>
       </div>
     </div>);

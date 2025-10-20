@@ -21,6 +21,13 @@ const SHORTCUTS = [
     ],
   },
   {
+    category: 'Grouping',
+    shortcuts: [
+      { keys: ['Ctrl', 'G'], description: 'Group selected elements' },
+      { keys: ['Ctrl', 'Shift', 'G'], description: 'Ungroup selected group' },
+    ],
+  },
+  {
     category: 'Resizing',
     shortcuts: [
       { keys: ['Shift', 'Drag'], description: 'Scale proportionally' },
@@ -43,9 +50,10 @@ export default function KeyboardShortcutsHelp() {
     <>
       {/* Keyboard Icon Button */}
       <button
+        data-tour="keyboard-shortcuts-button"
         onClick={() => setIsOpen(true)}
         className="w-12 h-12 bg-white/20 border border-white/30 rounded-xl backdrop-blur-xl flex items-center justify-center hover:bg-white/30 transition-all duration-300 text-white shadow-lg"
-        title="Keyboard Shortcuts"
+        title="View All Keyboard Shortcuts - Master shortcuts for faster workflow (Undo, Redo, Delete, Group, Multi-select, and more)"
       >
         <Keyboard className="w-6 h-6" />
       </button>

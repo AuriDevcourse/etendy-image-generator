@@ -16,7 +16,7 @@ export default function CanvasPreview({
   updateElement,
   canvasWidth, canvasHeight, onCanvasSizeChange,
   backgroundType, gradientColor1, gradientColor2, gradientAngle, backgroundColor, backgroundImage,
-  backgroundImageScale, backgroundImageX, backgroundImageY,
+  backgroundImageScale, backgroundImageX, backgroundImageY, backgroundImageBlur,
   backgroundImageBorderRadius, backgroundImageBorderWidth, backgroundImageBorderColor,
   overlayType, overlayColor, overlayOpacity, overlayGradientColor1, overlayGradientOpacity1, overlayGradientColor2, overlayGradientOpacity2,
   overlayGradientAngle, showCanvasBackgroundOverlay,
@@ -45,6 +45,8 @@ export default function CanvasPreview({
   handleUngroupElements, // Function to ungroup elements
 }) {
   const canvasRef = useRef(null);
+  const backgroundImageCacheRef = useRef(null); // Cache for background image
+  const backgroundCacheKeyRef = useRef(''); // Track cache validity
   const [fontsLoaded, setFontsLoaded] = useState(false);
   const [interactionState, setInteractionState] = useState({ type: 'none' });
   const [canvasSizeMode, setCanvasSizeMode] = useState('custom'); // Changed default to 'custom'
@@ -305,6 +307,36 @@ export default function CanvasPreview({
     // Draw Background
     if (backgroundType === 'image' && backgroundImage) {
       try {
+        // Create cache key for background image
+        const cacheKey = `${backgroundImage}_${backgroundImageScale}_${backgroundImageBlur}`;
+        
+        // Check if we need to regenerate the cached image
+        if (backgroundCacheKeyRef.current !== cacheKey || !backgroundImageCacheRef.current) {
+          const bgImg = await loadImage(backgroundImage);
+          const naturalWidth = bgImg.naturalWidth || bgImg.width;
+          const naturalHeight = bgImg.naturalHeight || bgImg.height;
+          const scaledWidth = naturalWidth * backgroundImageScale;
+          const scaledHeight = naturalHeight * backgroundImageScale;
+          
+          // Create offscreen canvas for caching
+          const offscreenCanvas = document.createElement('canvas');
+          offscreenCanvas.width = scaledWidth;
+          offscreenCanvas.height = scaledHeight;
+          const offscreenCtx = offscreenCanvas.getContext('2d');
+          
+          // Apply blur to cached image
+          if (backgroundImageBlur > 0) {
+            offscreenCtx.filter = `blur(${backgroundImageBlur}px)`;
+          }
+          offscreenCtx.drawImage(bgImg, 0, 0, scaledWidth, scaledHeight);
+          offscreenCtx.filter = 'none';
+          
+          // Store in cache
+          backgroundImageCacheRef.current = offscreenCanvas;
+          backgroundCacheKeyRef.current = cacheKey;
+        }
+        
+        // Use cached image
         const bgImg = await loadImage(backgroundImage);
         const naturalWidth = bgImg.naturalWidth || bgImg.width;
         const naturalHeight = bgImg.naturalHeight || bgImg.height;
@@ -334,7 +366,8 @@ export default function CanvasPreview({
             ctx.clip();
           }
           
-          ctx.drawImage(bgImg, backgroundImageX, backgroundImageY, scaledWidth, scaledHeight);
+          // Draw from cached canvas (already has blur applied)
+          ctx.drawImage(backgroundImageCacheRef.current, backgroundImageX, backgroundImageY);
           
           if (borderWidth > 0) {
             ctx.restore(); // Restore to remove clip to draw border
@@ -358,7 +391,8 @@ export default function CanvasPreview({
           }
           ctx.restore(); // Restore again after border drawing
         } else {
-          ctx.drawImage(bgImg, backgroundImageX, backgroundImageY, scaledWidth, scaledHeight);
+          // Draw from cached canvas (already has blur applied)
+          ctx.drawImage(backgroundImageCacheRef.current, backgroundImageX, backgroundImageY);
         }
       } catch (error) { console.error('Error loading background image:', error); }
     } else if (backgroundType === 'color') {
@@ -782,7 +816,7 @@ export default function CanvasPreview({
     elements, canvasWidth, canvasHeight, backgroundType, backgroundImage, backgroundColor, gradientColor1, gradientColor2, gradientAngle,
     overlayType, overlayColor, overlayOpacity, overlayGradientColor1, overlayGradientOpacity1, overlayGradientColor2, overlayGradientOpacity2,
     overlayGradientAngle, showCanvasBackgroundOverlay, loadImage, getElementRect, getHandles, drawRoundedRectPath, drawStarPath, selectedElementIds,
-    backgroundImageScale, backgroundImageX, backgroundImageY, snapLines, selectionBox,
+    backgroundImageScale, backgroundImageX, backgroundImageY, backgroundImageBlur, snapLines, selectionBox,
     // New dependencies for background image border/radius
     backgroundImageBorderRadius, backgroundImageBorderWidth, backgroundImageBorderColor, showGrid
   ]);
