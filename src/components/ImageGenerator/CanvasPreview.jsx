@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Download, Heart, RotateCw, Undo, Save, Expand, Undo2, Redo2 } from "lucide-react"; // Added Undo2 and Redo2
+import { Download, Heart, RotateCw, Save, Expand, Undo2, Redo2 } from "lucide-react";
 
 const HANDLE_SIZE = 12;
 const SNAP_THRESHOLD = 10; // Pixels for snapping
@@ -28,6 +28,7 @@ export default function CanvasPreview({
   onInteractionStart,
   onSaveTemplate, isSavingTemplate, // Keep prop even if UI is removed in this section, might be used elsewhere
   adminSettings,
+  presetRestrictions, // Preset restrictions
   isAdmin, // Admin status prop
   isCropping, // New prop
   ctrlPressed, // New prop for multi-select
@@ -1859,7 +1860,7 @@ export default function CanvasPreview({
         </div>
         <div className="flex items-center gap-3">
           {/* Removed: Save to Gallery, Save as Template, and Download buttons */}
-          {(!adminSettings?.canvasControls?.lockCanvasSize) && (
+          {(!presetRestrictions?.canvasControls?.lockCanvasSize && !adminSettings?.canvasControls?.lockCanvasSize) && (
             <Popover open={showBottomCanvasSizePanel} onOpenChange={setShowBottomCanvasSizePanel}>
               <PopoverTrigger asChild>
                 <Button size="sm" className="text-white hover:bg-white/20 bg-white/10 backdrop-blur-sm border-0" title="Canvas Size">

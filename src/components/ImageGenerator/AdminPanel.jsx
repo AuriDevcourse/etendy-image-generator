@@ -476,34 +476,40 @@ export default function AdminPanel({ settings, onSettingChange, onSave, isSaving
               </div>
               {/* Always show locked settings configuration for admins */}
               <LockedBackgroundSettings settings={settings} onSettingChange={handleLockedSettingsChange} section="backgroundControls" />
-            </AccordionContent>
-          </AccordionItem>
-
-          <AccordionItem value="canvas" className="bg-white/5 rounded-lg border border-white/10">
-            <AccordionTrigger className="px-6 py-4 text-white/90 hover:text-white hover:no-underline">
-              <div className="flex items-center gap-3">
-                <Expand className="w-5 h-5 text-white/80" /> Canvas Controls
-              </div>
-            </AccordionTrigger>
-            <AccordionContent className="px-6 pb-6 space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-white/80 text-xs">Default Width (px)</Label>
-                  <Input type="number" value={settings.canvasControls?.defaultWidth || 1500} onChange={(e) => handleNestedChange('canvasControls', 'defaultWidth', parseInt(e.target.value))} className="glass-input bg-white/5 border-white/20 text-white" />
+              
+              {/* Canvas Size Controls - moved here from separate section */}
+              <div className="mt-6 pt-6 border-t border-white/10 space-y-6">
+                <h4 className="text-sm font-semibold text-white/80">Canvas Size Settings</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-white/80 text-xs">Default Width (px)</Label>
+                    <Input 
+                      type="number" 
+                      value={settings.canvasControls?.defaultWidth || 1500} 
+                      onChange={(e) => handleNestedChange('canvasControls', 'defaultWidth', parseInt(e.target.value))} 
+                      className="glass-input bg-white/5 border-white/20 text-white" 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-white/80 text-xs">Default Height (px)</Label>
+                    <Input 
+                      type="number" 
+                      value={settings.canvasControls?.defaultHeight || 1500} 
+                      onChange={(e) => handleNestedChange('canvasControls', 'defaultHeight', parseInt(e.target.value))} 
+                      className="glass-input bg-white/5 border-white/20 text-white" 
+                    />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-white/80 text-xs">Default Height (px)</Label>
-                  <Input type="number" value={settings.canvasControls?.defaultHeight || 1500} onChange={(e) => handleNestedChange('canvasControls', 'defaultHeight', parseInt(e.target.value))} className="glass-input bg-white/5 border-white/20 text-white" />
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <Label className="text-white/80 font-medium">Lock canvas size</Label>
+                    <p className="text-xs text-white/60">Users cannot change the canvas dimensions</p>
+                  </div>
+                  <Switch
+                    checked={settings.canvasControls?.lockCanvasSize || false}
+                    onCheckedChange={(checked) => handleNestedChange('canvasControls', 'lockCanvasSize', checked)} 
+                  />
                 </div>
-              </div>
-              <div className="flex items-center justify-between pt-2">
-                <div className="space-y-1">
-                  <Label className="text-white/80 font-medium">Lock canvas size</Label>
-                  <p className="text-xs text-white/60">Users cannot change the canvas dimensions.</p>
-                </div>
-                <Switch
-                  checked={settings.canvasControls?.lockCanvasSize || false}
-                  onCheckedChange={(checked) => handleNestedChange('canvasControls', 'lockCanvasSize', checked)} />
               </div>
             </AccordionContent>
           </AccordionItem>
@@ -558,33 +564,55 @@ export default function AdminPanel({ settings, onSettingChange, onSave, isSaving
             </AccordionTrigger>
             <AccordionContent className="px-6 pb-6 space-y-6">
               <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <Label className="text-white/80 text-sm font-medium">Enable Image Upload</Label>
+                {/* Master toggle to disable all image controls */}
+                <div className="flex items-center justify-between pb-4 border-b border-white/10">
+                  <div className="space-y-1">
+                    <Label className="text-white/80 font-medium">Enable Image Controls</Label>
+                    <p className="text-xs text-white/60">Allow users to add and edit images</p>
+                  </div>
                   <Switch
-                    checked={settings.imageControls?.uploadEnabled !== false}
-                    onCheckedChange={(checked) => handleNestedChange('imageControls', 'uploadEnabled', checked)} />
+                    checked={settings.imageControls?.enabled !== false}
+                    onCheckedChange={(checked) => {
+                      handleNestedChange('imageControls', 'enabled', checked);
+                      if (!checked) {
+                        // When disabling all, also disable individual controls
+                        handleNestedChange('imageControls', 'uploadEnabled', false);
+                        handleNestedChange('imageControls', 'cropEnabled', false);
+                        handleNestedChange('imageControls', 'borderEnabled', false);
+                        handleNestedChange('imageControls', 'blurEnabled', false);
+                      }
+                    }} />
                 </div>
-                <div className={`space-y-4 pl-6 border-l-2 border-white/10 ${settings.imageControls?.uploadEnabled === false ? 'opacity-50' : ''}`}>
+                
+                {/* Individual controls */}
+                <div className={`space-y-4 ${settings.imageControls?.enabled === false ? 'opacity-50 pointer-events-none' : ''}`}>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-white/80 text-sm">Enable Upload</Label>
+                    <Switch
+                      checked={settings.imageControls?.uploadEnabled !== false}
+                      onCheckedChange={(checked) => handleNestedChange('imageControls', 'uploadEnabled', checked)}
+                      disabled={settings.imageControls?.enabled === false} />
+                  </div>
                   <div className="flex items-center justify-between">
                     <Label className="text-white/80 text-sm">Enable Crop</Label>
                     <Switch
                       checked={settings.imageControls?.cropEnabled !== false}
                       onCheckedChange={(checked) => handleNestedChange('imageControls', 'cropEnabled', checked)}
-                      disabled={settings.imageControls?.uploadEnabled === false} />
+                      disabled={settings.imageControls?.enabled === false} />
                   </div>
                   <div className="flex items-center justify-between">
                     <Label className="text-white/80 text-sm">Enable Border</Label>
                     <Switch
                       checked={settings.imageControls?.borderEnabled !== false}
                       onCheckedChange={(checked) => handleNestedChange('imageControls', 'borderEnabled', checked)}
-                      disabled={settings.imageControls?.uploadEnabled === false} />
+                      disabled={settings.imageControls?.enabled === false} />
                   </div>
                   <div className="flex items-center justify-between">
                     <Label className="text-white/80 text-sm">Enable Blur</Label>
                     <Switch
                       checked={settings.imageControls?.blurEnabled !== false}
                       onCheckedChange={(checked) => handleNestedChange('imageControls', 'blurEnabled', checked)}
-                      disabled={settings.imageControls?.uploadEnabled === false} />
+                      disabled={settings.imageControls?.enabled === false} />
                   </div>
                 </div>
               </div>
@@ -597,31 +625,56 @@ export default function AdminPanel({ settings, onSettingChange, onSave, isSaving
                 <Shapes className="w-5 h-5 text-white/80" /> Shape Controls
               </div>
             </AccordionTrigger>
-            <AccordionContent className="px-6 pb-6 space-y-4">
-              <div className="grid grid-cols-2 gap-x-8 gap-y-4">
+            <AccordionContent className="px-6 pb-6 space-y-6">
+              {/* Master toggle to disable all shape controls */}
+              <div className="flex items-center justify-between pb-4 border-b border-white/10">
+                <div className="space-y-1">
+                  <Label className="text-white/80 font-medium">Enable Shape Controls</Label>
+                  <p className="text-xs text-white/60">Allow users to add shapes</p>
+                </div>
+                <Switch
+                  checked={settings.shapeControls?.enabled !== false}
+                  onCheckedChange={(checked) => {
+                    handleNestedChange('shapeControls', 'enabled', checked);
+                    if (!checked) {
+                      // When disabling all, also disable individual shapes
+                      handleNestedChange('shapeControls', 'rectangleEnabled', false);
+                      handleNestedChange('shapeControls', 'circleEnabled', false);
+                      handleNestedChange('shapeControls', 'lineEnabled', false);
+                      handleNestedChange('shapeControls', 'starEnabled', false);
+                    }
+                  }} />
+              </div>
+              
+              {/* Individual shape controls */}
+              <div className={`grid grid-cols-2 gap-x-8 gap-y-4 ${settings.shapeControls?.enabled === false ? 'opacity-50 pointer-events-none' : ''}`}>
                 <div className="flex items-center justify-between">
                   <Label className="text-white/80 text-sm">Rectangle</Label>
                   <Switch
                     checked={settings.shapeControls?.rectangleEnabled !== false}
-                    onCheckedChange={(checked) => handleNestedChange('shapeControls', 'rectangleEnabled', checked)} />
+                    onCheckedChange={(checked) => handleNestedChange('shapeControls', 'rectangleEnabled', checked)}
+                    disabled={settings.shapeControls?.enabled === false} />
                 </div>
                 <div className="flex items-center justify-between">
                   <Label className="text-white/80 text-sm">Circle</Label>
                   <Switch
                     checked={settings.shapeControls?.circleEnabled !== false}
-                    onCheckedChange={(checked) => handleNestedChange('shapeControls', 'circleEnabled', checked)} />
+                    onCheckedChange={(checked) => handleNestedChange('shapeControls', 'circleEnabled', checked)}
+                    disabled={settings.shapeControls?.enabled === false} />
                 </div>
                 <div className="flex items-center justify-between">
                   <Label className="text-white/80 text-sm">Line</Label>
                   <Switch
                     checked={settings.shapeControls?.lineEnabled !== false}
-                    onCheckedChange={(checked) => handleNestedChange('shapeControls', 'lineEnabled', checked)} />
+                    onCheckedChange={(checked) => handleNestedChange('shapeControls', 'lineEnabled', checked)}
+                    disabled={settings.shapeControls?.enabled === false} />
                 </div>
                 <div className="flex items-center justify-between">
                   <Label className="text-white/80 text-sm">Star</Label>
                   <Switch
                     checked={settings.shapeControls?.starEnabled !== false}
-                    onCheckedChange={(checked) => handleNestedChange('shapeControls', 'starEnabled', checked)} />
+                    onCheckedChange={(checked) => handleNestedChange('shapeControls', 'starEnabled', checked)}
+                    disabled={settings.shapeControls?.enabled === false} />
                 </div>
               </div>
             </AccordionContent>
@@ -672,20 +725,6 @@ export default function AdminPanel({ settings, onSettingChange, onSave, isSaving
         )}
 
         <div className="pt-4 space-y-3">
-          {/* Preset Management Button */}
-          <Button
-            onClick={() => {
-              // Navigate to unified presets page
-              if (adminUser?.id) {
-                window.location.href = `/presets/${adminUser.id}`;
-              }
-            }}
-            className="w-full py-3 text-white bg-orange-500/20 border border-orange-500/30 hover:bg-orange-500/30 transition-all flex items-center justify-center gap-2 text-orange-300"
-          >
-            <Database className="w-4 h-4" />
-            My Presets
-          </Button>
-
           {/* Save Settings Button - Super Admin Only */}
           {isSuperAdmin && (
           <Button

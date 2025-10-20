@@ -18,7 +18,8 @@ export default function Step5Download({
   presetName,
   onSaveAsNewPreset, // Add new prop for creating new presets
   user = null, // Add user prop for tracking
-  onStatsUpdate = null // Add callback for stats updates
+  onStatsUpdate = null, // Add callback for stats updates
+  isAdmin = false // Add isAdmin prop to restrict preset creation
 }) {
   const [downloadFormat, setDownloadFormat] = useState('jpg');
   
@@ -78,8 +79,8 @@ export default function Step5Download({
             </Button>
           )}
 
-          {/* Save as New Preset Button (for logged-in users) - Shows always when logged in */}
-          {user && onSaveAsNewPreset && (
+          {/* Save as New Preset Button (for admins only) */}
+          {isAdmin && onSaveAsNewPreset && (
             <Button 
               onClick={onSaveAsNewPreset} 
               disabled={isSavingTemplate} 

@@ -67,9 +67,9 @@ const DEFAULT_ADMIN_SETTINGS = {
     locked: false,
     lockedSettings: {
       pageBackgroundType: 'gradient',
-      pageGradientColor1: '#7c3aed',
-      pageGradientColor2: '#1e40af',
-      pageBackgroundColor: '#1e1b4b',
+      pageGradientColor1: '#2a1f1a',
+      pageGradientColor2: '#000000',
+      pageBackgroundColor: '#2a1f1a',
       pageBackgroundImage: null,
       pageBackgroundScale: 1.0, // Added scale property
       pageBackgroundX: 0, // Added X position property
@@ -460,9 +460,9 @@ export default function ImageGeneratorPage() {
     if (settings?.pageBackgroundControls?.locked && settings.pageBackgroundControls.lockedSettings) {
       const locked = settings.pageBackgroundControls.lockedSettings;
       setPageBackgroundType(locked.pageBackgroundType || 'gradient');
-      setPageGradientColor1(locked.pageGradientColor1 || '#7c3aed');
-      setPageGradientColor2(locked.pageGradientColor2 || '#1e40af');
-      setPageBackgroundColor(locked.pageBackgroundColor || '#1e1b4b');
+      setPageGradientColor1(locked.pageGradientColor1 || '#2a1f1a');
+      setPageGradientColor2(locked.pageGradientColor2 || '#000000');
+      setPageBackgroundColor(locked.pageBackgroundColor || '#2a1f1a');
       setPageBackgroundImage(locked.pageBackgroundImage || null);
       setPageBackgroundScale(locked.pageBackgroundScale || 1.0);
       setPageBackgroundX(locked.pageBackgroundX || 0);
@@ -589,9 +589,12 @@ export default function ImageGeneratorPage() {
       setOverlayGradientOpacity2(0);
       setOverlayGradientAngle(180);
 
-      // Reset Canvas Size
+      // Reset Canvas Size (only if not locked by preset restrictions)
+      // Note: presetRestrictions might not be set yet when this runs on initial load
+      // The preset restrictions will override this later if needed
       const newWidth = settings?.canvasControls?.defaultWidth || DEFAULT_ADMIN_SETTINGS.canvasControls.defaultWidth;
       const newHeight = settings?.canvasControls?.defaultHeight || DEFAULT_ADMIN_SETTINGS.canvasControls.defaultHeight;
+      console.log('🔄 resetCanvasState: Setting canvas size to', newWidth, 'x', newHeight);
       setCanvasWidth(newWidth);
       setCanvasHeight(newHeight);
   }, [applyLockedBackground, setElements, setSelectedElementIds, setBackgroundType, setGradientColor1, setGradientColor2, setGradientAngle, setBackgroundColor, setBackgroundImage, setBackgroundImageNaturalDimensions, setBackgroundImageScale, setBackgroundImageX, setBackgroundImageY, setShowCanvasBackgroundOverlay, setOverlayType, setOverlayColor, setOverlayOpacity, setOverlayGradientColor1, setOverlayGradientOpacity1, setOverlayGradientColor2, setOverlayGradientOpacity2, setOverlayGradientAngle, setCanvasWidth, setCanvasHeight]);
@@ -725,57 +728,85 @@ export default function ImageGeneratorPage() {
   useEffect(() => {
     if (!initialSettingsApplied) return; // Don't run on initial load
 
-    // Apply locked settings for both regular users and admins (for preview)
-    if (adminSettings?.backgroundControls?.locked) {
-      console.log('🎨 Applying existing locked canvas background settings');
-      applyLockedBackground(adminSettings);
-    } else if (!isAdmin) {
-      // If background is unlocked, ensure the overlay is shown (only for non-admins)
-      setShowCanvasBackgroundOverlay(true);
+    // Only apply admin canvas background settings if NOT overridden by preset restrictions
+    if (!presetRestrictions?.backgroundControls?.locked) {
+      if (adminSettings?.backgroundControls?.locked) {
+        console.log('🎨 Applying existing locked canvas background settings');
+        applyLockedBackground(adminSettings);
+      } else if (!isAdmin) {
+        // If background is unlocked, ensure the overlay is shown (only for non-admins)
+        setShowCanvasBackgroundOverlay(true);
+      }
+    } else {
+      console.log('⏭️ Skipping admin canvas background settings - preset restrictions take priority');
     }
     
-    if (adminSettings?.pageBackgroundControls?.locked) {
-      console.log('🎨 Applying existing locked page background settings');
-      applyLockedPageBackground(adminSettings);
-    } else if (!isAdmin) {
-      // If page background becomes unlocked, reset to default user-controlled state (only for non-admins)
-      setPageBackgroundType('gradient');
-      setPageGradientColor1('#7c3aed');
-      setPageGradientColor2('#1e40af');
-      setPageBackgroundColor('#1e1b4b');
-      setPageBackgroundImage(null);
-      setPageBackgroundScale(1.0);
-      setPageBackgroundX(0);
-      setPageBackgroundY(0);
+    // Only apply admin page background settings if NOT overridden by preset restrictions
+    if (!presetRestrictions?.pageBackgroundControls?.locked) {
+      if (adminSettings?.pageBackgroundControls?.locked) {
+        console.log('🎨 Applying existing locked page background settings');
+        applyLockedPageBackground(adminSettings);
+      } else if (!isAdmin) {
+        // If page background becomes unlocked, reset to default user-controlled state (only for non-admins)
+        setPageBackgroundType('gradient');
+        setPageGradientColor1('#2a1f1a');
+        setPageGradientColor2('#000000');
+        setPageBackgroundColor('#2a1f1a');
+        setPageBackgroundImage(null);
+        setPageBackgroundScale(1.0);
+        setPageBackgroundX(0);
+        setPageBackgroundY(0);
+      }
+    } else {
+      console.log('⏭️ Skipping admin page background settings - preset restrictions take priority');
     }
     
-    // FIXED: Only apply admin canvas size if canvas size is LOCKED
-    if (adminSettings?.canvasControls?.lockCanvasSize && 
+    // FIXED: Only apply admin canvas size if canvas size is LOCKED (and not overridden by preset restrictions)
+    if (!presetRestrictions?.canvasControls?.lockCanvasSize && 
+        adminSettings?.canvasControls?.lockCanvasSize && 
         adminSettings?.canvasControls?.defaultWidth && 
         adminSettings?.canvasControls?.defaultHeight) {
       const newWidth = adminSettings.canvasControls.defaultWidth;
       const newHeight = adminSettings.canvasControls.defaultHeight;
       // Only apply if there's a significant difference to avoid unnecessary re-renders or history entries
       if (Math.abs(newWidth - canvasWidth) > 1 || Math.abs(newHeight - canvasHeight) > 1) {
+        console.log('📐 Applying admin canvas size:', newWidth, 'x', newHeight);
         handleCanvasSizeChange({ width: newWidth, height: newHeight });
       }
+    } else if (presetRestrictions?.canvasControls?.lockCanvasSize) {
+      console.log('⏭️ Skipping admin canvas size - preset restrictions take priority');
     }
-  }, [adminSettings, isAdmin, initialSettingsApplied, applyLockedBackground, applyLockedPageBackground, handleCanvasSizeChange, canvasWidth, canvasHeight, setPageBackgroundType, setPageGradientColor1, setPageGradientColor2, setPageBackgroundColor, setPageBackgroundImage, setPageBackgroundScale, setPageBackgroundX, setPageBackgroundY]);
+  }, [presetRestrictions, adminSettings, isAdmin, initialSettingsApplied, applyLockedBackground, applyLockedPageBackground, handleCanvasSizeChange, canvasWidth, canvasHeight, setPageBackgroundType, setPageGradientColor1, setPageGradientColor2, setPageBackgroundColor, setPageBackgroundImage, setPageBackgroundScale, setPageBackgroundX, setPageBackgroundY]);
 
   // Apply locked settings to regular users after initial load
   useEffect(() => {
     if (!initialSettingsApplied) return;
     
-    // Only apply locked settings to regular users on initial load
+    console.log('🔄 Admin settings useEffect triggered:', {
+      isAdmin,
+      hasPresetCanvasRestrictions: !!presetRestrictions?.backgroundControls?.locked,
+      hasPresetPageRestrictions: !!presetRestrictions?.pageBackgroundControls?.locked,
+      hasAdminCanvasLock: !!adminSettings?.backgroundControls?.locked,
+      hasAdminPageLock: !!adminSettings?.pageBackgroundControls?.locked
+    });
+    
+    // Only apply locked settings to regular users on initial load (if not overridden by preset restrictions)
     if (!isAdmin) {
-      if (adminSettings?.backgroundControls?.locked) {
+      if (!presetRestrictions?.backgroundControls?.locked && adminSettings?.backgroundControls?.locked) {
+        console.log('⚙️ Applying admin canvas background (no preset restrictions)');
         applyLockedBackground(adminSettings);
+      } else if (presetRestrictions?.backgroundControls?.locked) {
+        console.log('⏭️ Skipping admin canvas background - preset restrictions active');
       }
-      if (adminSettings?.pageBackgroundControls?.locked) {
+      
+      if (!presetRestrictions?.pageBackgroundControls?.locked && adminSettings?.pageBackgroundControls?.locked) {
+        console.log('⚙️ Applying admin page background (no preset restrictions)');
         applyLockedPageBackground(adminSettings);
+      } else if (presetRestrictions?.pageBackgroundControls?.locked) {
+        console.log('⏭️ Skipping admin page background - preset restrictions active');
       }
     }
-  }, [initialSettingsApplied, isAdmin, adminSettings, applyLockedBackground, applyLockedPageBackground]);
+  }, [initialSettingsApplied, isAdmin, presetRestrictions, adminSettings, applyLockedBackground, applyLockedPageBackground]);
 
   // REMOVED: Automatic save on settings change
   // Settings are now only saved when the "Save Settings" button is clicked
@@ -1320,22 +1351,88 @@ export default function ImageGeneratorPage() {
             // Store preset restrictions
             if (preset.restrictions) {
               setPresetRestrictions(preset.restrictions);
+              console.log('🔒 Applying preset restrictions:', preset.restrictions);
+              
+              // Apply locked PAGE background from restrictions if set
+              if (preset.restrictions.pageBackgroundControls?.locked) {
+                const pageBgControls = preset.restrictions.pageBackgroundControls;
+                console.log('🌍 Page background is locked, applying settings:', pageBgControls);
+                
+                if (pageBgControls.backgroundType === 'solid' && pageBgControls.solidColor) {
+                  console.log('✅ Applying PAGE SOLID color:', pageBgControls.solidColor);
+                  setPageBackgroundType('color');
+                  setPageBackgroundColor(pageBgControls.solidColor);
+                } else if (pageBgControls.backgroundType === 'gradient') {
+                  console.log('✅ Applying PAGE GRADIENT:', pageBgControls.gradientColor1, '→', pageBgControls.gradientColor2);
+                  setPageBackgroundType('gradient');
+                  if (pageBgControls.gradientColor1) setPageGradientColor1(pageBgControls.gradientColor1);
+                  if (pageBgControls.gradientColor2) setPageGradientColor2(pageBgControls.gradientColor2);
+                } else if (pageBgControls.backgroundType === 'image' && pageBgControls.imageUrl) {
+                  console.log('✅ Applying PAGE IMAGE:', pageBgControls.imageUrl);
+                  setPageBackgroundType('image');
+                  setPageBackgroundImage(pageBgControls.imageUrl);
+                }
+              }
+              
+              // Apply locked CANVAS background from restrictions if set
+              if (preset.restrictions.backgroundControls?.locked) {
+                const bgControls = preset.restrictions.backgroundControls;
+                console.log('🎨 Canvas background is locked, applying settings IMMEDIATELY:', bgControls);
+                
+                // Apply immediately (will be overridden by preset settings, but re-applied later)
+                if (bgControls.backgroundType === 'solid' && bgControls.solidColor) {
+                  console.log('✅ Applying CANVAS SOLID color (initial):', bgControls.solidColor);
+                  setBackgroundType('color');
+                  setBackgroundColor(bgControls.solidColor);
+                  setBackgroundImage(null);
+                } else if (bgControls.backgroundType === 'gradient') {
+                  console.log('✅ Applying CANVAS GRADIENT (initial):', bgControls.gradientColor1, '→', bgControls.gradientColor2);
+                  setBackgroundType('gradient');
+                  if (bgControls.gradientColor1) setGradientColor1(bgControls.gradientColor1);
+                  if (bgControls.gradientColor2) setGradientColor2(bgControls.gradientColor2);
+                  if (bgControls.gradientAngle) setGradientAngle(bgControls.gradientAngle);
+                  setBackgroundImage(null);
+                } else if (bgControls.backgroundType === 'image' && bgControls.imageUrl) {
+                  console.log('✅ Applying CANVAS IMAGE (initial):', bgControls.imageUrl);
+                  setBackgroundType('image');
+                  setBackgroundImage(bgControls.imageUrl);
+                }
+              } else {
+                console.log('ℹ️ Canvas background is NOT locked');
+              }
+              
+              // Apply locked CANVAS SIZE from restrictions if set
+              if (preset.restrictions.canvasControls?.lockCanvasSize) {
+                const canvasControls = preset.restrictions.canvasControls;
+                console.log('📐 Canvas size is locked, applying dimensions:', canvasControls);
+                
+                const newWidth = canvasControls.defaultWidth || 1500;
+                const newHeight = canvasControls.defaultHeight || 1500;
+                
+                console.log('✅ Applying CANVAS SIZE:', newWidth, 'x', newHeight);
+                setCanvasWidth(newWidth);
+                setCanvasHeight(newHeight);
+              } else {
+                console.log('ℹ️ Canvas size is NOT locked');
+              }
             }
             
-            // Apply preset settings
+            // Apply preset settings (only if background is not locked by restrictions)
             const settings = preset.settings;
             
-            // Background settings
-            if (settings.backgroundType) setBackgroundType(settings.backgroundType);
-            if (settings.backgroundColor) setBackgroundColor(settings.backgroundColor);
-            if (settings.gradientColor1) setGradientColor1(settings.gradientColor1);
-            if (settings.gradientColor2) setGradientColor2(settings.gradientColor2);
-            if (settings.gradientAngle) setGradientAngle(settings.gradientAngle);
-            if (settings.backgroundImage) setBackgroundImage(settings.backgroundImage);
-            if (settings.backgroundImageScale) setBackgroundImageScale(settings.backgroundImageScale);
-            if (settings.backgroundImageX) setBackgroundImageX(settings.backgroundImageX);
-            if (settings.backgroundImageY) setBackgroundImageY(settings.backgroundImageY);
-            if (settings.backgroundImageNaturalDimensions) setBackgroundImageNaturalDimensions(settings.backgroundImageNaturalDimensions);
+            // Background settings (skip if locked by restrictions)
+            if (!preset.restrictions?.backgroundControls?.locked) {
+              if (settings.backgroundType) setBackgroundType(settings.backgroundType);
+              if (settings.backgroundColor) setBackgroundColor(settings.backgroundColor);
+              if (settings.gradientColor1) setGradientColor1(settings.gradientColor1);
+              if (settings.gradientColor2) setGradientColor2(settings.gradientColor2);
+              if (settings.gradientAngle) setGradientAngle(settings.gradientAngle);
+              if (settings.backgroundImage) setBackgroundImage(settings.backgroundImage);
+              if (settings.backgroundImageScale) setBackgroundImageScale(settings.backgroundImageScale);
+              if (settings.backgroundImageX) setBackgroundImageX(settings.backgroundImageX);
+              if (settings.backgroundImageY) setBackgroundImageY(settings.backgroundImageY);
+              if (settings.backgroundImageNaturalDimensions) setBackgroundImageNaturalDimensions(settings.backgroundImageNaturalDimensions);
+            }
             
             // Overlay settings
             if (settings.overlayType) setOverlayType(settings.overlayType);
@@ -1347,19 +1444,23 @@ export default function ImageGeneratorPage() {
             if (settings.overlayGradientOpacity2 !== undefined) setOverlayGradientOpacity2(settings.overlayGradientOpacity2);
             if (settings.overlayGradientAngle) setOverlayGradientAngle(settings.overlayGradientAngle);
             
-            // Canvas size
-            if (settings.canvasWidth) setCanvasWidth(settings.canvasWidth);
-            if (settings.canvasHeight) setCanvasHeight(settings.canvasHeight);
+            // Canvas size (skip if locked by restrictions)
+            if (!preset.restrictions?.canvasControls?.lockCanvasSize) {
+              if (settings.canvasWidth) setCanvasWidth(settings.canvasWidth);
+              if (settings.canvasHeight) setCanvasHeight(settings.canvasHeight);
+            }
             
-            // Page background settings
-            if (settings.pageBackgroundType) setPageBackgroundType(settings.pageBackgroundType);
-            if (settings.pageGradientColor1) setPageGradientColor1(settings.pageGradientColor1);
-            if (settings.pageGradientColor2) setPageGradientColor2(settings.pageGradientColor2);
-            if (settings.pageBackgroundColor) setPageBackgroundColor(settings.pageBackgroundColor);
-            if (settings.pageBackgroundImage) setPageBackgroundImage(settings.pageBackgroundImage);
-            if (settings.pageBackgroundScale) setPageBackgroundScale(settings.pageBackgroundScale);
-            if (settings.pageBackgroundX) setPageBackgroundX(settings.pageBackgroundX);
-            if (settings.pageBackgroundY) setPageBackgroundY(settings.pageBackgroundY);
+            // Page background settings (skip if locked by restrictions)
+            if (!preset.restrictions?.pageBackgroundControls?.locked) {
+              if (settings.pageBackgroundType) setPageBackgroundType(settings.pageBackgroundType);
+              if (settings.pageGradientColor1) setPageGradientColor1(settings.pageGradientColor1);
+              if (settings.pageGradientColor2) setPageGradientColor2(settings.pageGradientColor2);
+              if (settings.pageBackgroundColor) setPageBackgroundColor(settings.pageBackgroundColor);
+              if (settings.pageBackgroundImage) setPageBackgroundImage(settings.pageBackgroundImage);
+              if (settings.pageBackgroundScale) setPageBackgroundScale(settings.pageBackgroundScale);
+              if (settings.pageBackgroundX) setPageBackgroundX(settings.pageBackgroundX);
+              if (settings.pageBackgroundY) setPageBackgroundY(settings.pageBackgroundY);
+            }
             
             // Elements (text, images, shapes, etc.)
             if (settings.elements && Array.isArray(settings.elements)) {
@@ -1372,6 +1473,49 @@ export default function ImageGeneratorPage() {
               setShowCanvasBackgroundOverlay(settings.showCanvasBackgroundOverlay);
             } else {
               setShowCanvasBackgroundOverlay(false); // Hide overlay since preset is loaded
+            }
+            
+            // RE-APPLY restrictions AFTER all preset settings are loaded to ensure they take priority
+            if (preset.restrictions?.backgroundControls?.locked) {
+              const bgControls = preset.restrictions.backgroundControls;
+              console.log('🔒 RE-APPLYING canvas background restrictions AFTER preset settings:', bgControls);
+              
+              // Use setTimeout with longer delay to ensure this happens AFTER the canvas has been drawn once
+              setTimeout(() => {
+                if (bgControls.backgroundType === 'solid' && bgControls.solidColor) {
+                  setBackgroundType('color');
+                  setBackgroundColor(bgControls.solidColor);
+                  setBackgroundImage(null);
+                  setGradientColor1('#000000'); // Reset gradient colors to force redraw
+                  setGradientColor2('#000000');
+                  console.log('✅ FINAL: Canvas background set to solid color:', bgControls.solidColor);
+                } else if (bgControls.backgroundType === 'gradient') {
+                  setBackgroundType('gradient');
+                  if (bgControls.gradientColor1) setGradientColor1(bgControls.gradientColor1);
+                  if (bgControls.gradientColor2) setGradientColor2(bgControls.gradientColor2);
+                  if (bgControls.gradientAngle) setGradientAngle(bgControls.gradientAngle);
+                  setBackgroundImage(null);
+                  setBackgroundColor('#000000'); // Reset solid color to force redraw
+                  console.log('✅ FINAL: Canvas background set to gradient');
+                } else if (bgControls.backgroundType === 'image' && bgControls.imageUrl) {
+                  setBackgroundType('image');
+                  setBackgroundImage(bgControls.imageUrl);
+                  setBackgroundColor('#000000'); // Reset solid color to force redraw
+                  setGradientColor1('#000000'); // Reset gradient colors to force redraw
+                  setGradientColor2('#000000');
+                  console.log('✅ FINAL: Canvas background set to image');
+                }
+                
+                // Also re-apply canvas size if locked
+                if (preset.restrictions?.canvasControls?.lockCanvasSize) {
+                  const canvasControls = preset.restrictions.canvasControls;
+                  const newWidth = canvasControls.defaultWidth || 1500;
+                  const newHeight = canvasControls.defaultHeight || 1500;
+                  console.log('✅ FINAL: Re-applying canvas size:', newWidth, 'x', newHeight);
+                  setCanvasWidth(newWidth);
+                  setCanvasHeight(newHeight);
+                }
+              }, 250); // Longer delay to ensure canvas has been drawn with preset settings first
             }
             
             setCurrentPreset({ 
@@ -1761,9 +1905,11 @@ export default function ImageGeneratorPage() {
         bgImg.src = backgroundImage;
       });
     } else if (backgroundType === 'color') {
+      console.log('🎨 Drawing SOLID canvas background:', backgroundColor);
       ctx.fillStyle = backgroundColor;
       ctx.fillRect(0, 0, canvasWidth, canvasHeight);
     } else { // Gradient background
+      console.log('🌈 Drawing GRADIENT canvas background:', gradientColor1, '→', gradientColor2);
       const angleRad = (gradientAngle * Math.PI) / 180;
       const length = Math.abs(canvasWidth * Math.cos(angleRad)) + Math.abs(canvasHeight * Math.sin(angleRad));
       const centerX = canvasWidth / 2;
@@ -1834,12 +1980,27 @@ export default function ImageGeneratorPage() {
         await new Promise(resolve => {
           img.onload = () => {
             const isImage = el.type === 'image';
-            const crop = isImage ? el.crop : { x: 0, y: 0, width: el.naturalWidth, height: el.naturalHeight };
+            
+            const imgNaturalWidth = img.naturalWidth || img.width;
+            const imgNaturalHeight = img.naturalHeight || img.height;
+            
+            // Source rectangle
+            let sx, sy, sWidth, sHeight;
+            if (isImage && el.crop) {
+                sx = el.crop.x; sy = el.crop.y; sWidth = el.crop.width; sHeight = el.crop.height;
+            } else {
+                sx = 0; sy = 0; sWidth = imgNaturalWidth; sHeight = imgNaturalHeight;
+            }
+            sWidth = Math.max(1, sWidth);
+            sHeight = Math.max(1, sHeight);
 
-            const scaledWidth = crop.width * el.scale;
-            const scaledHeight = crop.height * el.scale;
-            const halfW = scaledWidth / 2;
-            const halfH = scaledHeight / 2;
+            // Support independent width/height scaling (scaleX, scaleY) or fallback to uniform scale
+            const scaleX = el.scaleX !== undefined ? el.scaleX : el.scale;
+            const scaleY = el.scaleY !== undefined ? el.scaleY : el.scale;
+            const dWidth = sWidth * scaleX;
+            const dHeight = sHeight * scaleY;
+            const halfW = dWidth / 2;
+            const halfH = dHeight / 2;
             const borderRadius = Math.min(el.borderRadius || 0, halfW, halfH);
             const rotation = Number(el.rotation || 0);
 
@@ -1862,7 +2023,7 @@ export default function ImageGeneratorPage() {
               ctx.clip();
             }
 
-            ctx.drawImage(img, crop.x, crop.y, crop.width, crop.height, -halfW, -halfH, scaledWidth, scaledHeight);
+            ctx.drawImage(img, sx, sy, sWidth, sHeight, -halfW, -halfH, dWidth, dHeight);
 
             if (el.borderWidth > 0) {
               ctx.beginPath();
@@ -1895,6 +2056,7 @@ export default function ImageGeneratorPage() {
         });
       } else if (el.type === 'text') {
         const applyTextTransform = (text, transform) => {
+            if (!text) return '';
             if (transform === 'uppercase') return text.toUpperCase();
             if (transform === 'capitalize') return text.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
             return text;
@@ -1903,23 +2065,22 @@ export default function ImageGeneratorPage() {
         const rotation = Number(el.rotation || 0);
         ctx.font = `${el.style} ${el.weight} ${el.size}px "${el.font}", Arial, sans-serif`;
         ctx.textBaseline = 'top';
-        ctx.textAlign = el.textAlign || 'left'; // Use element's text alignment
+        ctx.textAlign = 'left'; // Always use left alignment, we'll calculate offset manually
 
-        // Safety check: ensure content exists
-        const textContent = el.content || el.text || 'Text';
-        const transformedText = applyTextTransform(textContent, el.transform);
+        const transformedText = applyTextTransform(el.content, el.transform);
         const textLines = transformedText.split('\n');
         const lineHeight = el.size * (el.lineHeight || 1.2); // Use element's line height
         
-        // Measure text width for gradient sizing if needed
-        let maxLineWidth = 0;
-        textLines.forEach(line => {
-          const metrics = ctx.measureText(line);
-          maxLineWidth = Math.max(maxLineWidth, metrics.width);
-        });
+        // Measure max width for alignment calculations
+        const maxLineWidth = Math.max(...textLines.map(line => ctx.measureText(line).width));
 
+        ctx.save();
+        ctx.translate(el.x, el.y);
+        if (rotation !== 0) ctx.rotate((rotation * Math.PI) / 180);
+        
+        // Build gradient or solid fill AFTER translation
         if (el.colorType === 'gradient') {
-            const gradient = ctx.createLinearGradient(el.x, el.y, el.x + maxLineWidth, el.y + textLines.length * lineHeight);
+            const gradient = ctx.createLinearGradient(0, 0, maxLineWidth, 0);
             gradient.addColorStop(0, el.color1);
             gradient.addColorStop(1, el.color2);
             ctx.fillStyle = gradient;
@@ -1927,12 +2088,19 @@ export default function ImageGeneratorPage() {
             ctx.fillStyle = el.color1;
         }
         
-        ctx.save();
-        ctx.translate(el.x, el.y);
-        if (rotation !== 0) ctx.rotate((rotation * Math.PI) / 180);
-        // Draw each line relative to origin after rotation
+        // Draw each line with alignment offset
         textLines.forEach((line, index) => {
-            ctx.fillText(line, 0, index * lineHeight);
+            const lineWidth = ctx.measureText(line).width;
+            let xOffset = 0;
+            
+            // Calculate x offset based on alignment within the text box
+            if (el.textAlign === 'center') {
+                xOffset = (maxLineWidth - lineWidth) / 2;
+            } else if (el.textAlign === 'right') {
+                xOffset = maxLineWidth - lineWidth;
+            }
+            
+            ctx.fillText(line, xOffset, index * lineHeight);
         });
         ctx.restore();
       } else if (el.type === 'shape') {
@@ -2094,39 +2262,39 @@ export default function ImageGeneratorPage() {
         await Promise.race([drawPromise, timeoutPromise]);
         console.log('✅ drawFinalImage completed successfully');
         
-        // Create a very small thumbnail canvas for minimal storage usage
+        // Create a thumbnail canvas for preview
         const thumbnailCanvas = document.createElement('canvas');
-        thumbnailCanvas.width = 50; // Even smaller for storage efficiency
-        thumbnailCanvas.height = 50;
+        thumbnailCanvas.width = 200; // Larger for better visibility
+        thumbnailCanvas.height = 200;
         const thumbnailCtx = thumbnailCanvas.getContext('2d');
         
         // Draw the full canvas scaled down to thumbnail size
-        thumbnailCtx.drawImage(exportCanvas, 0, 0, canvasWidth, canvasHeight, 0, 0, 50, 50);
+        thumbnailCtx.drawImage(exportCanvas, 0, 0, canvasWidth, canvasHeight, 0, 0, 200, 200);
         
-        // Use very low quality for tiny file size
-        dataUrl = thumbnailCanvas.toDataURL('image/jpeg', 0.05); // Even lower quality
+        // Use better quality for visible thumbnails
+        dataUrl = thumbnailCanvas.toDataURL('image/jpeg', 0.6); // Better quality
         console.log('📸 Small thumbnail generated successfully, length:', dataUrl.length);
       } catch (drawError) {
         console.warn('⚠️ Thumbnail generation failed or timed out, creating simple preview:', drawError);
         // Create a simple preview showing canvas background color/gradient
         try {
           const simpleCanvas = document.createElement('canvas');
-          simpleCanvas.width = 50;
-          simpleCanvas.height = 50;
+          simpleCanvas.width = 200;
+          simpleCanvas.height = 200;
           const simpleCtx = simpleCanvas.getContext('2d');
           
           // Draw background based on type
           if (backgroundType === 'gradient') {
-            const gradient = simpleCtx.createLinearGradient(0, 0, 50, 50);
+            const gradient = simpleCtx.createLinearGradient(0, 0, 200, 200);
             gradient.addColorStop(0, gradientColor1);
             gradient.addColorStop(1, gradientColor2);
             simpleCtx.fillStyle = gradient;
           } else {
             simpleCtx.fillStyle = backgroundColor;
           }
-          simpleCtx.fillRect(0, 0, 50, 50);
+          simpleCtx.fillRect(0, 0, 200, 200);
           
-          dataUrl = simpleCanvas.toDataURL('image/jpeg', 0.3);
+          dataUrl = simpleCanvas.toDataURL('image/jpeg', 0.6);
         } catch (fallbackError) {
           // Ultimate fallback - gray square
           dataUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mM8w8DwHwAEOQHCb6aP0AAAAABJRU5ErkJggg==';
@@ -2189,8 +2357,14 @@ export default function ImageGeneratorPage() {
         name: error.name
       });
       
-      // Error handling
-      const errorMessage = error.message || 'Failed to save template. Please try again.';
+      // Check for duplicate name error
+      let errorMessage = error.message || 'Failed to save template. Please try again.';
+      
+      if (error.message && error.message.includes('unique_template_name_per_preset')) {
+        errorMessage = `A template named "${templateName}" already exists in this preset. Please choose a different name.`;
+      } else if (error.message && error.message.includes('duplicate key')) {
+        errorMessage = 'A template with this name already exists. Please choose a different name.';
+      }
       
       setSaveErrorMessage(errorMessage);
       setShowSaveError(true);
@@ -2570,8 +2744,41 @@ export default function ImageGeneratorPage() {
   }, [galleryImages]);
   
   const getPageBackgroundStyle = useCallback(() => {
-    // If page background is locked, use the locked settings
+    console.log('🎨 getPageBackgroundStyle called:', {
+      pageBackgroundType,
+      pageBackgroundColor,
+      pageGradientColor1,
+      pageGradientColor2,
+      hasPresetRestrictions: !!presetRestrictions?.pageBackgroundControls?.locked,
+      hasAdminSettings: !!adminSettings?.pageBackgroundControls?.locked
+    });
+    
+    // PRIORITY 1: Check preset restrictions first (takes precedence over admin settings)
+    if (presetRestrictions?.pageBackgroundControls?.locked) {
+      console.log('🔒 Using preset restrictions for page background');
+      // Use the state values that were set from restrictions
+      if (pageBackgroundType === 'image' && pageBackgroundImage) {
+        console.log('📷 Preset: Using image background');
+        return {
+          backgroundImage: `url(${pageBackgroundImage})`,
+          backgroundSize: `${pageBackgroundScale * 100}%`,
+          backgroundPosition: `${pageBackgroundX}px ${pageBackgroundY}px`,
+          backgroundRepeat: 'no-repeat'
+        };
+      } else if (pageBackgroundType === 'color') {
+        console.log('🎨 Preset: Using solid color:', pageBackgroundColor);
+        return { background: pageBackgroundColor };
+      } else {
+        console.log('🌈 Preset: Using gradient:', pageGradientColor1, '→', pageGradientColor2);
+        return {
+          background: `linear-gradient(135deg, ${pageGradientColor1}, ${pageGradientColor2})`
+        };
+      }
+    }
+    
+    // PRIORITY 2: Check admin settings (only if no preset restrictions)
     if (adminSettings?.pageBackgroundControls?.locked && adminSettings?.pageBackgroundControls?.lockedSettings) {
+      console.log('⚙️ Using admin settings for page background');
       const lockedSettings = adminSettings.pageBackgroundControls.lockedSettings;
 
       if (lockedSettings.pageBackgroundType === 'image' && lockedSettings.pageBackgroundImage) {
@@ -2586,13 +2793,14 @@ export default function ImageGeneratorPage() {
       } else {
         // Default to gradient
         return {
-          background: `linear-gradient(135deg, ${lockedSettings.pageGradientColor1 || '#7c3aed'}, ${lockedSettings.pageGradientColor2 || '#1e40af'})`
+          background: `linear-gradient(135deg, ${lockedSettings.pageGradientColor1 || '#2a1f1a'}, ${lockedSettings.pageGradientColor2 || '#000000'})`
         };
       }
     }
 
-    // If not locked, use the regular page background state
+    // PRIORITY 3: Use regular page background state (if nothing is locked)
     if (pageBackgroundType === 'image' && pageBackgroundImage) {
+      console.log('📷 Using image background');
       return {
         backgroundImage: `url(${pageBackgroundImage})`,
         backgroundSize: `${pageBackgroundScale * 100}%`,
@@ -2600,13 +2808,15 @@ export default function ImageGeneratorPage() {
         backgroundRepeat: 'no-repeat'
       };
     } else if (pageBackgroundType === 'color') {
+      console.log('🎨 Using solid color:', pageBackgroundColor);
       return { background: pageBackgroundColor };
     } else {
+      console.log('🌈 Using gradient:', pageGradientColor1, '→', pageGradientColor2);
       return {
         background: `linear-gradient(135deg, ${pageGradientColor1}, ${pageGradientColor2})`
       };
     }
-  }, [adminSettings, pageBackgroundType, pageBackgroundImage, pageBackgroundColor, pageGradientColor1, pageGradientColor2, pageBackgroundScale, pageBackgroundX, pageBackgroundY]);
+  }, [presetRestrictions, adminSettings, pageBackgroundType, pageBackgroundImage, pageBackgroundColor, pageGradientColor1, pageGradientColor2, pageBackgroundScale, pageBackgroundX, pageBackgroundY]);
 
   const handleNextLightbox = () => {
     if (lightboxIndex === null || galleryImages.length === 0) return;
@@ -2624,7 +2834,7 @@ export default function ImageGeneratorPage() {
       {showAdminPrompt && (
         <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-8 max-w-md w-full">
-            <h2 className="text-2xl font-bold text-white mb-4 text-center">Admin Login</h2>
+            <h2 className="text-2xl font-bold text-white/90 mb-4 text-center">Admin Login</h2>
             <p className="text-white/80 mb-6 text-center">Enter the admin code to access admin features.</p>
             
             <div className="space-y-4">
@@ -2641,13 +2851,13 @@ export default function ImageGeneratorPage() {
               <div className="flex gap-3">
                 <button
                   onClick={handleAdminCodeSubmit}
-                  className="flex-1 bg-orange-500 text-white py-3 px-6 rounded-lg font-semibold transition-opacity hover:opacity-80"
+                  className="flex-1 bg-orange-500 text-white/90 py-3 px-6 rounded-lg font-semibold transition-opacity hover:opacity-80"
                 >
                   Login
                 </button>
                 <button
                   onClick={() => setShowAdminPrompt(false)}
-                  className="flex-1 bg-white/10 text-white py-3 px-6 rounded-lg font-semibold transition-opacity hover:opacity-80"
+                  className="flex-1 bg-white/10 text-white/90 py-3 px-6 rounded-lg font-semibold transition-opacity hover:opacity-80"
                 >
                   Cancel
                 </button>
@@ -2860,7 +3070,7 @@ export default function ImageGeneratorPage() {
             <button 
               data-tour="templates-button"
               onClick={(e) => { e.stopPropagation(); handleTemplatesPanelToggle(); }}
-              className="w-12 h-12 bg-white/20 border border-white/30 rounded-xl backdrop-blur-xl flex items-center justify-center transition-opacity hover:opacity-80 text-white relative shadow-lg"
+              className="w-12 h-12 bg-white/20 border border-white/30 rounded-xl backdrop-blur-xl flex items-center justify-center transition-opacity hover:opacity-80 text-white/90 relative shadow-lg"
               title="Templates - Save & load design templates (max 4 per preset, requires login)"
             >
               <Save className="w-6 h-6" />
@@ -2901,7 +3111,7 @@ export default function ImageGeneratorPage() {
             <button 
               data-tour="layers-button"
               onClick={(e) => { e.stopPropagation(); handleLayersPanelToggle(); }}
-              className="w-12 h-12 bg-white/20 border border-white/30 rounded-xl backdrop-blur-xl flex items-center justify-center transition-opacity hover:opacity-80 text-white relative shadow-lg"
+              className="w-12 h-12 bg-white/20 border border-white/30 rounded-xl backdrop-blur-xl flex items-center justify-center transition-opacity hover:opacity-80 text-white/90 relative shadow-lg"
               title="Layers - View, reorder, lock, and manage all canvas elements"
             >
               <Layers className="w-6 h-6" />
@@ -2941,7 +3151,7 @@ export default function ImageGeneratorPage() {
             <button 
               data-tour="gallery-button"
               onClick={(e) => { e.stopPropagation(); handleGalleryPanelToggle(); }}
-              className="w-12 h-12 bg-white/20 border border-white/30 rounded-xl backdrop-blur-xl flex items-center justify-center transition-opacity hover:opacity-80 text-white relative shadow-lg"
+              className="w-12 h-12 bg-white/20 border border-white/30 rounded-xl backdrop-blur-xl flex items-center justify-center transition-opacity hover:opacity-80 text-white/90 relative shadow-lg"
               title="Gallery - View & manage saved images (requires login, syncs across devices)"
             >
               <Heart className="w-6 h-6" />
@@ -3034,6 +3244,7 @@ export default function ImageGeneratorPage() {
                 onSaveTemplate={handleSaveTemplate}
                 isSavingTemplate={isSavingTemplate}
                 adminSettings={adminSettings}
+                presetRestrictions={presetRestrictions}
                 isAdmin={isAdmin}
                 isCropping={isCropping}
                 onElementSelect={(elementId) => {
@@ -3068,7 +3279,7 @@ export default function ImageGeneratorPage() {
                     </button>
                 )}
                 {/* Image Panel Tab */}
-                {(!adminSettings || adminSettings.imageControls?.uploadEnabled !== false) && (
+                {(!presetRestrictions?.imageControls || presetRestrictions.imageControls?.enabled !== false) && (!adminSettings || adminSettings.imageControls?.uploadEnabled !== false) && (
                     <button data-tour="image-tab" onClick={() => setActiveControlPanel('image')} 
                             className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg text-xs font-medium transition-opacity ${activeControlPanel === 'image' ? 'bg-orange-500 text-white shadow-lg' : 'text-white/70 hover:opacity-80'}`}
                             title="Image - Upload, crop, resize, and style images with borders and effects">
@@ -3084,14 +3295,11 @@ export default function ImageGeneratorPage() {
                     Text
                 </button>
                 {/* Elements Panel Tab */}
-                {((presetRestrictions?.shapeControls?.rectangleEnabled !== false ||
-                  presetRestrictions?.shapeControls?.circleEnabled !== false ||
-                  presetRestrictions?.shapeControls?.lineEnabled !== false ||
-                  presetRestrictions?.shapeControls?.starEnabled !== false) ||
-                  (!presetRestrictions && (adminSettings?.shapeControls?.rectangleEnabled ||
-                  adminSettings?.shapeControls?.circleEnabled ||
-                  adminSettings?.shapeControls?.lineEnabled ||
-                  adminSettings?.shapeControls?.starEnabled))
+                {(
+                  // Show if no preset restrictions
+                  !presetRestrictions ||
+                  // Or if preset doesn't explicitly disable shapes
+                  presetRestrictions.shapeControls?.enabled !== false
                 ) && (
                     <button data-tour="elements-tab" onClick={() => setActiveControlPanel('elements')} 
                             className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg text-xs font-medium transition-opacity ${activeControlPanel === 'elements' ? 'bg-orange-500 text-white shadow-lg' : 'text-white/70 hover:opacity-80'}`}
@@ -3111,7 +3319,7 @@ export default function ImageGeneratorPage() {
 
               {/* Render active panel content - Scrollable with admin-style scrollbar */}
               <div className="flex-grow bg-white/10 glass-panel border border-white/20 rounded-xl p-4 overflow-auto panel-scroll">
-                {activeControlPanel === 'background' && adminSettings?.backgroundControls?.locked !== true && (
+                {activeControlPanel === 'background' && !presetRestrictions?.backgroundControls?.locked && adminSettings?.backgroundControls?.locked !== true && (
                   <Step1Background 
                     backgroundType={backgroundType} 
                     setBackgroundType={(val) => { pushToHistory(); setBackgroundType(val); }} 
@@ -3160,7 +3368,7 @@ export default function ImageGeneratorPage() {
                   />
                 )}
 
-                {activeControlPanel === 'image' && (!adminSettings || adminSettings.imageControls?.uploadEnabled !== false) && (
+                {activeControlPanel === 'image' && (!presetRestrictions?.imageControls || presetRestrictions.imageControls?.enabled !== false) && (!adminSettings || adminSettings.imageControls?.uploadEnabled !== false) && (
                   <Step2Image 
                     photo={selectedElementIds.length === 1 ? elements.find(el => el.id === selectedElementIds[0] && el.type === 'image') : null}
                     images={elements.filter(el => el.type === 'image' && el.src)}
@@ -3192,14 +3400,9 @@ export default function ImageGeneratorPage() {
                   />
                 )}
 
-                {activeControlPanel === 'elements' && ((presetRestrictions?.shapeControls?.rectangleEnabled !== false ||
-                  presetRestrictions?.shapeControls?.circleEnabled !== false ||
-                  presetRestrictions?.shapeControls?.lineEnabled !== false ||
-                  presetRestrictions?.shapeControls?.starEnabled !== false) ||
-                  (!presetRestrictions && (adminSettings?.shapeControls?.rectangleEnabled ||
-                  adminSettings?.shapeControls?.circleEnabled ||
-                  adminSettings?.shapeControls?.lineEnabled ||
-                  adminSettings?.shapeControls?.starEnabled))
+                {activeControlPanel === 'elements' && (
+                  // Show if no preset restrictions or if shapes are not explicitly disabled
+                  !presetRestrictions || presetRestrictions.shapeControls?.enabled !== false
                 ) && (
                   <Step4Elements 
                     elements={elements}
@@ -3233,6 +3436,7 @@ export default function ImageGeneratorPage() {
                       onSaveAsNewPreset={handleSaveCurrentAsMyPreset}
                       user={regularUser}
                       onStatsUpdate={handleStatsUpdate}
+                      isAdmin={isAdmin}
                     />
                   </>
                 )}
@@ -3250,7 +3454,7 @@ export default function ImageGeneratorPage() {
           {/* Close Button */}
           <button
             onClick={(e) => { e.stopPropagation(); setLightboxIndex(null); }}
-            className="absolute top-4 right-4 bg-white/20 text-white p-2 rounded-full hover:bg-white/30 transition-colors z-10"
+            className="absolute top-4 right-4 bg-white/20 text-white/90 p-2 rounded-full hover:bg-white/30 transition-colors z-10"
           >
             <X className="w-6 h-6" />
           </button>
@@ -3262,7 +3466,7 @@ export default function ImageGeneratorPage() {
                 e.stopPropagation();
                 handlePrevLightbox();
               }}
-              className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/20 text-white p-2 rounded-full hover:bg-white/30 transition-colors z-10"
+              className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/20 text-white/90 p-2 rounded-full hover:bg-white/30 transition-colors z-10"
             >
               <ChevronLeft className="w-8 h-8" />
             </button>
@@ -3282,7 +3486,7 @@ export default function ImageGeneratorPage() {
                 e.stopPropagation();
                 handleNextLightbox();
               }}
-              className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/20 text-white p-2 rounded-full hover:bg-white/30 transition-colors z-10"
+              className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/20 text-white/90 p-2 rounded-full hover:bg-white/30 transition-colors z-10"
             >
               <ChevronRight className="w-8 h-8" />
             </button>
@@ -3292,7 +3496,7 @@ export default function ImageGeneratorPage() {
 
       {/* Success Message */}
       {showSaveSuccess && (
-        <div className="fixed top-8 left-1/2 -translate-x-1/2 z-50 bg-green-500/90 text-white px-6 py-3 rounded-xl shadow-lg flex items-center gap-3 animate-fade-in">
+        <div className="fixed top-8 left-1/2 -translate-x-1/2 z-50 bg-green-500/90 text-white/90 px-6 py-3 rounded-xl shadow-lg flex items-center gap-3 animate-fade-in">
           <CheckCircle className="w-6 h-6" />
           <span className="font-semibold">Saved successfully!</span>
         </div>
@@ -3300,7 +3504,7 @@ export default function ImageGeneratorPage() {
 
       {/* Error Message */}
       {showSaveError && (
-        <div className="fixed top-8 left-1/2 -translate-x-1/2 z-50 bg-red-500/90 text-white px-6 py-3 rounded-xl shadow-lg flex items-center gap-3 max-w-md animate-fade-in">
+        <div className="fixed top-8 left-1/2 -translate-x-1/2 z-50 bg-red-500/90 text-white/90 px-6 py-3 rounded-xl shadow-lg flex items-center gap-3 max-w-md animate-fade-in">
           <X className="w-6 h-6 flex-shrink-0" />
           <div>
             <p className="font-semibold">Operation Failed</p>
@@ -3329,10 +3533,12 @@ export default function ImageGeneratorPage() {
         </div>
       )}
 
-      {/* Update Counter - For tracking code changes */}
-      <div className="fixed bottom-4 left-4 z-50 bg-black/50 text-white/70 px-3 py-1 rounded text-xs font-mono">
-        Update #28 - UX Improvements & Undo/Redo Fix
-      </div>
+      {/* Update Counter - For tracking code changes (Super Admin Only) */}
+      {isSuperAdmin && (
+        <div className="fixed bottom-4 left-4 z-50 bg-black/50 text-white/70 px-3 py-1 rounded text-xs font-mono">
+          Update #28 - UX Improvements & Undo/Redo Fix
+        </div>
+      )}
 
       {/* Tooltip Tour */}
       {showTooltipTour && (

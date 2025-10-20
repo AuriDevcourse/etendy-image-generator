@@ -270,20 +270,6 @@ const UserProfile = ({
                 </div>
               </div>
 
-              {/* My Presets Button */}
-              <div className="pt-4 border-t border-white/20">
-                <Button
-                  onClick={() => {
-                    // Navigate to user's presets dashboard
-                    window.location.href = `/presets/${user?.id}`;
-                  }}
-                  className="w-full bg-orange-500/20 border border-orange-500/30 hover:bg-orange-500/30 text-orange-300"
-                >
-                  <Palette className="w-4 h-4 mr-2" />
-                  My Presets
-                </Button>
-              </div>
-
               {/* Save Button */}
               <div className="pt-4 border-t border-white/20">
                 <Button

@@ -705,6 +705,10 @@ export const templateService = {
         if (error.message && error.message.includes('Maximum of 4 templates')) {
           throw new Error('Maximum of 4 templates per preset reached. Please delete an existing template first.')
         }
+        // Check if it's a duplicate name error
+        if (error.code === '23505' || (error.message && error.message.includes('unique_template_name_per_preset'))) {
+          throw new Error(`A template named "${name}" already exists in this preset. Please choose a different name.`)
+        }
         throw error
       }
       

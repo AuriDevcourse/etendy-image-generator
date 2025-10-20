@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { Copy, ExternalLink, Trash2, User, LogOut, Edit, Pencil, RefreshCw, Settings } from "lucide-react";
+import { Copy, ExternalLink, Trash2, User, LogOut, Pencil, RefreshCw, Settings, Database, ArrowLeft, Link2, Eye, Palette } from "lucide-react";
 import { presetService, authService, roleService } from '../lib/supabase';
 import PresetRestrictionsPanel from './ImageGenerator/PresetRestrictionsPanel';
 
@@ -121,12 +121,17 @@ export default function AdminDashboard() {
         };
       }
 
+      console.log('💾 Creating new preset with restrictions:', presetRestrictions);
+      
       const newPreset = await presetService.createPreset(
         presetName.trim(),
         currentSettings,
         user.email,
         presetRestrictions  // Add restrictions
       );
+
+      console.log('✅ New preset created:', newPreset);
+      console.log('🔒 Saved restrictions:', newPreset.restrictions);
 
       setPresets([newPreset, ...presets]);
       setPresetName('');
@@ -168,12 +173,17 @@ export default function AdminDashboard() {
     
     setIsSaving(true);
     try {
+      console.log('💾 Saving restrictions for preset:', editingPresetId);
+      console.log('📦 Restrictions to save:', presetRestrictions);
+      
       await presetService.updatePreset(
         editingPresetId,
         null, // Don't update settings, only restrictions
         null, // Don't verify ownership, just update by ID
         presetRestrictions
       );
+      
+      console.log('✅ Restrictions saved successfully!');
       
       // Update local state
       setPresets(presets.map(preset => 
@@ -188,7 +198,7 @@ export default function AdminDashboard() {
       setShowRestrictionsPanel(false);
       alert('Restrictions updated successfully!');
     } catch (error) {
-      console.error('Failed to update restrictions:', error);
+      console.error('❌ Failed to update restrictions:', error);
       alert('Failed to update restrictions. Please try again.');
     } finally {
       setIsSaving(false);
@@ -243,21 +253,21 @@ export default function AdminDashboard() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center">
-        <div className="text-white">Loading...</div>
+      <div className="min-h-screen relative overflow-hidden flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #2a1f1a, #000000)' }}>
+        <div className="text-white text-lg">Loading...</div>
       </div>
     );
   }
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center">
-        <Card className="p-8 bg-white/10 border-white/20 backdrop-blur-xl">
+      <div className="min-h-screen relative overflow-hidden flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #2a1f1a, #000000)' }}>
+        <Card className="p-8 glass-panel border border-orange-500/20 backdrop-blur-xl bg-white/10">
           <div className="text-center space-y-4">
-            <User className="w-12 h-12 text-white/80 mx-auto" />
+            <User className="w-12 h-12 text-orange-300 mx-auto" />
             <h1 className="text-2xl font-bold text-white">Admin Login</h1>
             <p className="text-white/70">Sign in with Google to access admin features</p>
-            <Button onClick={handleSignIn} className="w-full">
+            <Button onClick={handleSignIn} className="w-full bg-orange-500 hover:bg-orange-600">
               Sign in with Google
             </Button>
           </div>
@@ -268,14 +278,14 @@ export default function AdminDashboard() {
 
   if (!isAdmin) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center">
-        <Card className="p-8 bg-white/10 border-white/20 backdrop-blur-xl">
+      <div className="min-h-screen relative overflow-hidden flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #2a1f1a, #000000)' }}>
+        <Card className="p-8 glass-panel border border-orange-500/20 backdrop-blur-xl bg-white/10">
           <div className="text-center space-y-4">
             <div className="text-white/80">
               <p>Hello, {user.email}</p>
               <p className="text-sm text-white/60 mt-2">You don't have admin access.</p>
             </div>
-            <Button onClick={handleSignOut} variant="outline">
+            <Button onClick={handleSignOut} variant="outline" className="bg-white/10 border-orange-500/20 text-white hover:bg-white/20">
               <LogOut className="w-4 h-4 mr-2" />
               Sign Out
             </Button>
@@ -286,20 +296,29 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 p-6">
-      <div className="max-w-4xl mx-auto space-y-6">
+    <div className="min-h-screen relative overflow-hidden p-6" style={{ background: 'linear-gradient(135deg, #2a1f1a, #000000)' }}>
+      <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-white">Admin Dashboard</h1>
-            <p className="text-white/70">Welcome, {user.email}</p>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Button
+              onClick={() => window.location.href = '/'}
+              variant="outline"
+              className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to App
+            </Button>
+            <div>
+              <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+                <Database className="w-8 h-8" />
+                Preset Management
+              </h1>
+              <p className="text-white/60 mt-1">Create and configure presets with restrictions</p>
+            </div>
           </div>
           <div className="flex gap-2">
-            <Button onClick={() => window.open('/', '_blank')} variant="outline">
-              <ExternalLink className="w-4 h-4 mr-2" />
-              Open App
-            </Button>
-            <Button onClick={handleSignOut} variant="outline">
+            <Button onClick={handleSignOut} variant="outline" className="bg-white/10 border-white/20 text-white hover:bg-white/20">
               <LogOut className="w-4 h-4 mr-2" />
               Sign Out
             </Button>
@@ -307,8 +326,11 @@ export default function AdminDashboard() {
         </div>
 
         {/* Create Preset */}
-        <Card className="p-6 bg-white/10 border-white/20 backdrop-blur-xl">
-          <h2 className="text-xl font-semibold text-white mb-4">Create New Preset</h2>
+        <Card className="glass-panel border border-white/20 backdrop-blur-xl bg-white/10 p-6">
+          <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
+            <Palette className="w-5 h-5" />
+            Create New Preset
+          </h2>
           <div className="space-y-4">
             <div className="flex gap-4">
               <div className="flex-1">
@@ -325,7 +347,7 @@ export default function AdminDashboard() {
                   onClick={() => setShowRestrictionsPanel(true)}
                   disabled={!presetName.trim()}
                   variant="outline"
-                  className="bg-white/5 border-white/20 text-white hover:bg-white/10"
+                  className="bg-orange-500/20 border-orange-500/30 text-orange-300 hover:bg-orange-500/30"
                 >
                   <Settings className="w-4 h-4 mr-2" />
                   Configure Restrictions
@@ -333,7 +355,7 @@ export default function AdminDashboard() {
                 <Button 
                   onClick={saveCurrentAsPreset}
                   disabled={!presetName.trim() || isSaving}
-                  className="bg-indigo-500 hover:bg-indigo-600"
+                  className="bg-blue-500 hover:bg-blue-600 text-white"
                 >
                   {isSaving ? 'Saving...' : 'Save Preset'}
                 </Button>
@@ -346,9 +368,12 @@ export default function AdminDashboard() {
         </Card>
 
         {/* Presets List */}
-        <Card className="p-6 bg-white/10 border-white/20 backdrop-blur-xl">
+        <Card className="glass-panel border border-white/20 backdrop-blur-xl bg-white/10 p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-white">Your Presets ({presets.length})</h2>
+            <h2 className="text-xl font-semibold text-white flex items-center gap-2">
+              <Database className="w-5 h-5" />
+              Your Presets ({presets.length})
+            </h2>
             <Button
               onClick={async () => {
                 try {
@@ -359,12 +384,12 @@ export default function AdminDashboard() {
                   console.error('Failed to refresh presets:', error);
                 }
               }}
-              variant="ghost"
+              variant="outline"
               size="sm"
-              className="text-white hover:text-white hover:bg-white/10 p-2"
-              title="Refresh Presets"
+              className="bg-white/10 border-white/20 text-white hover:bg-white/20"
             >
-              <RefreshCw className="w-4 h-4" />
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Refresh
             </Button>
           </div>
           
@@ -375,7 +400,7 @@ export default function AdminDashboard() {
           ) : (
             <div className="space-y-3">
               {presets.map((preset) => (
-                <div key={preset.id} className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
+                <div key={preset.id} className="flex items-center justify-between p-4 glass-panel bg-white/5 rounded-lg border border-white/10 hover:bg-white/10 transition-all">
                   <div>
                     <h3 className="text-white font-medium">{preset.name}</h3>
                     <p className="text-white/60 text-sm">
@@ -390,16 +415,16 @@ export default function AdminDashboard() {
                       size="sm"
                       variant="ghost"
                       onClick={() => editPreset(preset.id)}
-                      className="text-white hover:text-white hover:bg-white/10 p-2"
-                      title="Edit Preset"
+                      className="text-blue-300 hover:text-blue-200 hover:bg-blue-500/20 p-2"
+                      title="Edit Preset Design"
                     >
-                      <Edit className="w-4 h-4" />
+                      <Pencil className="w-4 h-4" />
                     </Button>
                     <Button
                       size="sm"
                       variant="ghost"
                       onClick={() => editPresetRestrictions(preset)}
-                      className="text-white hover:text-white hover:bg-white/10 p-2"
+                      className="text-orange-300 hover:text-orange-200 hover:bg-orange-500/20 p-2"
                       title="Edit Restrictions"
                     >
                       <Settings className="w-4 h-4" />
@@ -408,7 +433,7 @@ export default function AdminDashboard() {
                       size="sm"
                       variant="ghost"
                       onClick={() => renamePreset(preset.id, preset.name)}
-                      className="text-white hover:text-white hover:bg-white/10 p-2"
+                      className="text-purple-300 hover:text-purple-200 hover:bg-purple-500/20 p-2"
                       title="Rename Preset"
                     >
                       <Pencil className="w-4 h-4" />
@@ -417,25 +442,25 @@ export default function AdminDashboard() {
                       size="sm"
                       variant="ghost"
                       onClick={() => copyPresetLink(preset.id)}
-                      className="text-white hover:text-white hover:bg-white/10 p-2"
+                      className="text-green-300 hover:text-green-200 hover:bg-green-500/20 p-2"
                       title="Copy Link"
                     >
-                      <Copy className="w-4 h-4" />
+                      <Link2 className="w-4 h-4" />
                     </Button>
                     <Button
                       size="sm"
                       variant="ghost"
                       onClick={() => openPresetLink(preset.id)}
-                      className="text-white hover:text-white hover:bg-white/10 p-2"
+                      className="text-cyan-300 hover:text-cyan-200 hover:bg-cyan-500/20 p-2"
                       title="Preview"
                     >
-                      <ExternalLink className="w-4 h-4" />
+                      <Eye className="w-4 h-4" />
                     </Button>
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => deletePreset(preset.id, preset.name)}
-                      className="text-red-400 hover:text-red-300 hover:bg-red-500/10 p-2"
+                      onClick={() => deletePreset(preset.id)}
+                      className="text-red-300 hover:text-red-200 hover:bg-red-500/20 p-2"
                       title="Delete Preset"
                     >
                       <Trash2 className="w-4 h-4" />

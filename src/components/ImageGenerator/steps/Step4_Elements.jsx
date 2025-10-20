@@ -34,6 +34,11 @@ export default function Step4Elements({
   adminSettings,
 }) {
   const shapeControls = adminSettings?.shapeControls || {};
+  // Default all shapes to enabled if not explicitly set
+  const isRectangleEnabled = shapeControls.rectangleEnabled !== false;
+  const isCircleEnabled = shapeControls.circleEnabled !== false;
+  const isLineEnabled = shapeControls.lineEnabled !== false;
+  const isStarEnabled = shapeControls.starEnabled !== false;
   const [rectRadiiLinked, setRectRadiiLinked] = useState(true);
 
   useEffect(() => {
@@ -127,10 +132,10 @@ export default function Step4Elements({
         <div>
           <Label className="text-white/80 text-sm font-medium mb-3 block">Add Shape</Label>
           <div className="grid grid-cols-4 gap-2">
-            {shapeControls.rectangleEnabled && <Button variant="outline" className="h-12 bg-white/5 border-white/20 text-white" onClick={() => handleAddShape('rectangle')}><ShapeIcon shapeType="rectangle" /></Button>}
-            {shapeControls.circleEnabled && <Button variant="outline" className="h-12 bg-white/5 border-white/20 text-white" onClick={() => handleAddShape('circle')}><ShapeIcon shapeType="circle" /></Button>}
-            {shapeControls.lineEnabled && <Button variant="outline" className="h-12 bg-white/5 border-white/20 text-white" onClick={() => handleAddShape('line')}><ShapeIcon shapeType="line" /></Button>}
-            {shapeControls.starEnabled && <Button variant="outline" className="h-12 bg-white/5 border-white/20 text-white" onClick={() => handleAddShape('star')}><ShapeIcon shapeType="star" /></Button>}
+            {isRectangleEnabled && <Button variant="outline" className="h-12 bg-white/5 border-white/20 text-white" onClick={() => handleAddShape('rectangle')}><ShapeIcon shapeType="rectangle" /></Button>}
+            {isCircleEnabled && <Button variant="outline" className="h-12 bg-white/5 border-white/20 text-white" onClick={() => handleAddShape('circle')}><ShapeIcon shapeType="circle" /></Button>}
+            {isLineEnabled && <Button variant="outline" className="h-12 bg-white/5 border-white/20 text-white" onClick={() => handleAddShape('line')}><ShapeIcon shapeType="line" /></Button>}
+            {isStarEnabled && <Button variant="outline" className="h-12 bg-white/5 border-white/20 text-white" onClick={() => handleAddShape('star')}><ShapeIcon shapeType="star" /></Button>}
           </div>
         </div>
         

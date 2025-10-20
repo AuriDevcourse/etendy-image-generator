@@ -33,10 +33,19 @@ export default function LandingPage() {
     return () => clearInterval(interval);
   }, []);
 
-  const handleTryNow = () => {
+  const handleTryNow = async () => {
+    // Check if user is logged in
+    const currentUser = await authService.getCurrentUser();
+    
     setIsTransitioning(true);
     setTimeout(() => {
-      navigate('/generator');
+      if (currentUser) {
+        // User is logged in, go to generator
+        navigate('/generator');
+      } else {
+        // User is not logged in, redirect to Google login
+        authService.signInWithGoogle();
+      }
     }, 500); // Wait for fade-out animation
   };
 
@@ -64,7 +73,7 @@ export default function LandingPage() {
   ];
 
   return (
-    <div className={`min-h-screen w-full bg-[#211c1a] relative overflow-hidden transition-opacity duration-500 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
+    <div className={`min-h-screen w-full relative overflow-hidden transition-opacity duration-500 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`} style={{ background: 'linear-gradient(135deg, #2a1f1a, #000000)' }}>
       {/* Animated wavy scribble background */}
       <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none">
         <svg 
@@ -130,7 +139,7 @@ export default function LandingPage() {
           <Button
             onClick={handleTryNow}
             size="lg"
-            className="group bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-lg px-12 py-6 rounded-full shadow-2xl shadow-orange-500/20 hover:shadow-orange-500/40 transition-all duration-300 transform hover:scale-105 font-semibold border-0"
+            className="group bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white/90 text-lg px-12 py-6 rounded-xl shadow-2xl shadow-orange-500/20 hover:shadow-orange-500/40 transition-all duration-300 transform hover:scale-105 font-semibold border-0"
           >
             Try Now
             <ArrowRight className="ml-3 w-5 h-5 group-hover:translate-x-1 transition-transform" />

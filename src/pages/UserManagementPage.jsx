@@ -163,7 +163,7 @@ export default function UserManagementPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+      <div className="min-h-screen relative overflow-hidden flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #2a1f1a, #000000)' }}>
         <div className="flex items-center gap-3 text-white">
           <RefreshCw className="w-6 h-6 animate-spin" />
           <span className="text-lg">Loading users...</span>
@@ -173,7 +173,7 @@ export default function UserManagementPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-6">
+    <div className="min-h-screen relative overflow-hidden p-6" style={{ background: 'linear-gradient(135deg, #2a1f1a, #000000)' }}>
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">

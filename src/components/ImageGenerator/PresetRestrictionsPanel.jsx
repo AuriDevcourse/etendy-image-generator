@@ -27,6 +27,8 @@ export default function PresetRestrictionsPanel({ restrictions, onRestrictionsCh
         [key]: value
       }
     };
+    console.log('🔧 Restriction changed:', section, key, '=', value);
+    console.log('📦 Updated restrictions:', updated);
     setLocalRestrictions(updated);
     onRestrictionsChange(updated);
   };
@@ -64,12 +66,134 @@ export default function PresetRestrictionsPanel({ restrictions, onRestrictionsCh
       </Card>
 
       <Accordion type="multiple" className="space-y-4">
-        {/* Background Controls */}
-        <AccordionItem value="background" className="bg-white/5 rounded-lg border border-white/10">
+        {/* Page Background Controls */}
+        <AccordionItem value="pageBackground" className="bg-white/5 rounded-lg border border-white/10">
           <AccordionTrigger className="px-6 py-4 text-white/90 hover:text-white hover:no-underline">
             <div className="flex items-center gap-3">
               <Palette className="w-5 h-5 text-white/80" />
-              Background Controls
+              Page Background (App Background)
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="px-6 pb-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <Label className="text-white/80 font-medium">Lock page background</Label>
+                <p className="text-xs text-white/60">Set the background color/gradient around the canvas</p>
+              </div>
+              <Switch
+                checked={localRestrictions.pageBackgroundControls?.locked || false}
+                onCheckedChange={(checked) => handleChange('pageBackgroundControls', 'locked', checked)}
+              />
+            </div>
+            {localRestrictions.pageBackgroundControls?.locked && (
+              <div className="bg-white/5 rounded-lg p-4 border border-white/10 space-y-4">
+                <div>
+                  <Label className="text-white/80 text-sm mb-2 block">Background Type</Label>
+                  <Tabs 
+                    value={localRestrictions.pageBackgroundControls?.backgroundType || 'gradient'}
+                    onValueChange={(value) => handleChange('pageBackgroundControls', 'backgroundType', value)}
+                  >
+                    <TabsList className="grid w-full grid-cols-3 bg-white/10">
+                      <TabsTrigger value="solid" className="data-[state=active]:bg-white/20">Solid</TabsTrigger>
+                      <TabsTrigger value="gradient" className="data-[state=active]:bg-white/20">Gradient</TabsTrigger>
+                      <TabsTrigger value="image" className="data-[state=active]:bg-white/20">Image</TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                </div>
+
+                {/* Solid Color Picker */}
+                {localRestrictions.pageBackgroundControls?.backgroundType === 'solid' && (
+                  <div>
+                    <Label className="text-white/80 text-sm mb-2 block">Solid Color</Label>
+                    <div className="flex items-center gap-3">
+                      <Input
+                        type="color"
+                        value={localRestrictions.pageBackgroundControls?.solidColor || '#2a1f1a'}
+                        onChange={(e) => handleChange('pageBackgroundControls', 'solidColor', e.target.value)}
+                        className="w-20 h-10 cursor-pointer"
+                      />
+                      <Input
+                        type="text"
+                        value={localRestrictions.pageBackgroundControls?.solidColor || '#2a1f1a'}
+                        onChange={(e) => handleChange('pageBackgroundControls', 'solidColor', e.target.value)}
+                        className="flex-1 bg-white/10 border-white/20 text-white"
+                        placeholder="#2a1f1a"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Gradient Color Pickers */}
+                {localRestrictions.pageBackgroundControls?.backgroundType === 'gradient' && (
+                  <div className="space-y-3">
+                    <div>
+                      <Label className="text-white/80 text-sm mb-2 block">Gradient Color 1</Label>
+                      <div className="flex items-center gap-3">
+                        <Input
+                          type="color"
+                          value={localRestrictions.pageBackgroundControls?.gradientColor1 || '#2a1f1a'}
+                          onChange={(e) => handleChange('pageBackgroundControls', 'gradientColor1', e.target.value)}
+                          className="w-20 h-10 cursor-pointer"
+                        />
+                        <Input
+                          type="text"
+                          value={localRestrictions.pageBackgroundControls?.gradientColor1 || '#2a1f1a'}
+                          onChange={(e) => handleChange('pageBackgroundControls', 'gradientColor1', e.target.value)}
+                          className="flex-1 bg-white/10 border-white/20 text-white"
+                          placeholder="#2a1f1a"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-white/80 text-sm mb-2 block">Gradient Color 2</Label>
+                      <div className="flex items-center gap-3">
+                        <Input
+                          type="color"
+                          value={localRestrictions.pageBackgroundControls?.gradientColor2 || '#000000'}
+                          onChange={(e) => handleChange('pageBackgroundControls', 'gradientColor2', e.target.value)}
+                          className="w-20 h-10 cursor-pointer"
+                        />
+                        <Input
+                          type="text"
+                          value={localRestrictions.pageBackgroundControls?.gradientColor2 || '#000000'}
+                          onChange={(e) => handleChange('pageBackgroundControls', 'gradientColor2', e.target.value)}
+                          className="flex-1 bg-white/10 border-white/20 text-white"
+                          placeholder="#000000"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Image Background */}
+                {localRestrictions.pageBackgroundControls?.backgroundType === 'image' && (
+                  <div>
+                    <Label className="text-white/80 text-sm mb-2 block">Background Image URL</Label>
+                    <Input
+                      type="text"
+                      value={localRestrictions.pageBackgroundControls?.imageUrl || ''}
+                      onChange={(e) => handleChange('pageBackgroundControls', 'imageUrl', e.target.value)}
+                      className="bg-white/10 border-white/20 text-white"
+                      placeholder="https://example.com/image.jpg"
+                    />
+                    <p className="text-xs text-white/50 mt-1">Enter a direct URL to an image</p>
+                  </div>
+                )}
+
+                <p className="text-xs text-white/60 pt-2 border-t border-white/10">
+                  This is the background color/image around the canvas (the app page background).
+                </p>
+              </div>
+            )}
+          </AccordionContent>
+        </AccordionItem>
+
+        {/* Canvas Background Controls */}
+        <AccordionItem value="canvasBackground" className="bg-white/5 rounded-lg border border-white/10">
+          <AccordionTrigger className="px-6 py-4 text-white/90 hover:text-white hover:no-underline">
+            <div className="flex items-center gap-3">
+              <Grid className="w-5 h-5 text-white/80" />
+              Canvas Background (Inside Canvas)
             </div>
           </AccordionTrigger>
           <AccordionContent className="px-6 pb-6 space-y-4">
@@ -98,11 +222,158 @@ export default function PresetRestrictionsPanel({ restrictions, onRestrictionsCh
                     </TabsList>
                   </Tabs>
                 </div>
-                <p className="text-xs text-white/60">
-                  Background will be locked to <strong>{localRestrictions.backgroundControls?.backgroundType || 'gradient'}</strong> type when preset is saved.
+
+                {/* Solid Color Picker */}
+                {localRestrictions.backgroundControls?.backgroundType === 'solid' && (
+                  <div>
+                    <Label className="text-white/80 text-sm mb-2 block">Solid Color</Label>
+                    <div className="flex items-center gap-3">
+                      <Input
+                        type="color"
+                        value={localRestrictions.backgroundControls?.solidColor || '#211c1a'}
+                        onChange={(e) => handleChange('backgroundControls', 'solidColor', e.target.value)}
+                        className="w-20 h-10 cursor-pointer"
+                      />
+                      <Input
+                        type="text"
+                        value={localRestrictions.backgroundControls?.solidColor || '#211c1a'}
+                        onChange={(e) => handleChange('backgroundControls', 'solidColor', e.target.value)}
+                        className="flex-1 bg-white/10 border-white/20 text-white"
+                        placeholder="#211c1a"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Gradient Color Pickers */}
+                {localRestrictions.backgroundControls?.backgroundType === 'gradient' && (
+                  <div className="space-y-3">
+                    <div>
+                      <Label className="text-white/80 text-sm mb-2 block">Gradient Color 1</Label>
+                      <div className="flex items-center gap-3">
+                        <Input
+                          type="color"
+                          value={localRestrictions.backgroundControls?.gradientColor1 || '#6366f1'}
+                          onChange={(e) => handleChange('backgroundControls', 'gradientColor1', e.target.value)}
+                          className="w-20 h-10 cursor-pointer"
+                        />
+                        <Input
+                          type="text"
+                          value={localRestrictions.backgroundControls?.gradientColor1 || '#6366f1'}
+                          onChange={(e) => handleChange('backgroundControls', 'gradientColor1', e.target.value)}
+                          className="flex-1 bg-white/10 border-white/20 text-white"
+                          placeholder="#6366f1"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-white/80 text-sm mb-2 block">Gradient Color 2</Label>
+                      <div className="flex items-center gap-3">
+                        <Input
+                          type="color"
+                          value={localRestrictions.backgroundControls?.gradientColor2 || '#8b5cf6'}
+                          onChange={(e) => handleChange('backgroundControls', 'gradientColor2', e.target.value)}
+                          className="w-20 h-10 cursor-pointer"
+                        />
+                        <Input
+                          type="text"
+                          value={localRestrictions.backgroundControls?.gradientColor2 || '#8b5cf6'}
+                          onChange={(e) => handleChange('backgroundControls', 'gradientColor2', e.target.value)}
+                          className="flex-1 bg-white/10 border-white/20 text-white"
+                          placeholder="#8b5cf6"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-white/80 text-sm mb-2 block">Gradient Angle</Label>
+                      <div className="flex items-center gap-3">
+                        <Input
+                          type="range"
+                          min="0"
+                          max="360"
+                          value={localRestrictions.backgroundControls?.gradientAngle || 135}
+                          onChange={(e) => handleChange('backgroundControls', 'gradientAngle', parseInt(e.target.value))}
+                          className="flex-1"
+                        />
+                        <Input
+                          type="number"
+                          value={localRestrictions.backgroundControls?.gradientAngle || 135}
+                          onChange={(e) => handleChange('backgroundControls', 'gradientAngle', parseInt(e.target.value) || 135)}
+                          className="w-20 bg-white/10 border-white/20 text-white text-center"
+                          min="0"
+                          max="360"
+                        />
+                        <span className="text-white/60 text-sm">°</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Image Upload (placeholder for now) */}
+                {localRestrictions.backgroundControls?.backgroundType === 'image' && (
+                  <div>
+                    <Label className="text-white/80 text-sm mb-2 block">Background Image URL</Label>
+                    <Input
+                      type="text"
+                      value={localRestrictions.backgroundControls?.imageUrl || ''}
+                      onChange={(e) => handleChange('backgroundControls', 'imageUrl', e.target.value)}
+                      className="bg-white/10 border-white/20 text-white"
+                      placeholder="https://example.com/image.jpg"
+                    />
+                    <p className="text-xs text-white/50 mt-1">Enter a direct URL to an image</p>
+                  </div>
+                )}
+
+                <p className="text-xs text-white/60 pt-2 border-t border-white/10">
+                  Users will see this background when they access the preset link.
                 </p>
               </div>
             )}
+            
+            {/* Canvas Size Controls - moved here */}
+            <div className="mt-6 pt-6 border-t border-white/10 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <Label className="text-white/80 font-medium">Lock canvas size</Label>
+                  <p className="text-xs text-white/60">Users cannot resize the canvas</p>
+                </div>
+                <Switch
+                  checked={localRestrictions.canvasControls?.lockCanvasSize || false}
+                  onCheckedChange={(checked) => handleChange('canvasControls', 'lockCanvasSize', checked)}
+                />
+              </div>
+              {localRestrictions.canvasControls?.lockCanvasSize && (
+                <div className="bg-white/5 rounded-lg p-4 border border-white/10 space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-white/80 text-sm mb-2 block">Width (px)</Label>
+                      <Input
+                        type="number"
+                        value={localRestrictions.canvasControls?.defaultWidth || 1500}
+                        onChange={(e) => handleChange('canvasControls', 'defaultWidth', parseInt(e.target.value) || 1500)}
+                        className="bg-white/10 border-white/20 text-white"
+                        min="100"
+                        max="5000"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-white/80 text-sm mb-2 block">Height (px)</Label>
+                      <Input
+                        type="number"
+                        value={localRestrictions.canvasControls?.defaultHeight || 1500}
+                        onChange={(e) => handleChange('canvasControls', 'defaultHeight', parseInt(e.target.value) || 1500)}
+                        className="bg-white/10 border-white/20 text-white"
+                        min="100"
+                        max="5000"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-xs text-white/60">
+                    Canvas will be locked to <strong>{localRestrictions.canvasControls?.defaultWidth || 1500}x{localRestrictions.canvasControls?.defaultHeight || 1500}px</strong>
+                  </p>
+                </div>
+              )}
+            </div>
           </AccordionContent>
         </AccordionItem>
 
@@ -167,34 +438,57 @@ export default function PresetRestrictionsPanel({ restrictions, onRestrictionsCh
               Image Controls
             </div>
           </AccordionTrigger>
-          <AccordionContent className="px-6 pb-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <Label className="text-white/80">Enable image upload</Label>
+          <AccordionContent className="px-6 pb-6 space-y-6">
+            {/* Master toggle */}
+            <div className="flex items-center justify-between pb-4 border-b border-white/10">
+              <div className="space-y-1">
+                <Label className="text-white/80 font-medium">Disable all image controls</Label>
+                <p className="text-xs text-white/60">Completely disable image functionality</p>
+              </div>
               <Switch
-                checked={localRestrictions.imageControls?.uploadEnabled !== false}
-                onCheckedChange={(checked) => handleChange('imageControls', 'uploadEnabled', checked)}
+                checked={localRestrictions.imageControls?.enabled === false}
+                onCheckedChange={(checked) => {
+                  // When toggle is ON (checked=true), we want to DISABLE (enabled=false)
+                  // When toggle is OFF (checked=false), we want to ENABLE (enabled=true)
+                  handleChange('imageControls', 'enabled', !checked);
+                }}
               />
             </div>
-            <div className="flex items-center justify-between">
-              <Label className="text-white/80">Enable crop tool</Label>
-              <Switch
-                checked={localRestrictions.imageControls?.cropEnabled !== false}
-                onCheckedChange={(checked) => handleChange('imageControls', 'cropEnabled', checked)}
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <Label className="text-white/80">Enable borders</Label>
-              <Switch
-                checked={localRestrictions.imageControls?.borderEnabled !== false}
-                onCheckedChange={(checked) => handleChange('imageControls', 'borderEnabled', checked)}
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <Label className="text-white/80">Enable blur</Label>
-              <Switch
-                checked={localRestrictions.imageControls?.blurEnabled !== false}
-                onCheckedChange={(checked) => handleChange('imageControls', 'blurEnabled', checked)}
-              />
+            
+            {/* Individual controls */}
+            <div className={`space-y-4 ${localRestrictions.imageControls?.enabled === false ? 'opacity-50 pointer-events-none' : ''}`}>
+              <div className="flex items-center justify-between">
+                <Label className="text-white/80">Enable image upload</Label>
+                <Switch
+                  checked={localRestrictions.imageControls?.uploadEnabled !== false}
+                  onCheckedChange={(checked) => handleChange('imageControls', 'uploadEnabled', checked)}
+                  disabled={localRestrictions.imageControls?.enabled === false}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <Label className="text-white/80">Enable crop tool</Label>
+                <Switch
+                  checked={localRestrictions.imageControls?.cropEnabled !== false}
+                  onCheckedChange={(checked) => handleChange('imageControls', 'cropEnabled', checked)}
+                  disabled={localRestrictions.imageControls?.enabled === false}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <Label className="text-white/80">Enable borders</Label>
+                <Switch
+                  checked={localRestrictions.imageControls?.borderEnabled !== false}
+                  onCheckedChange={(checked) => handleChange('imageControls', 'borderEnabled', checked)}
+                  disabled={localRestrictions.imageControls?.enabled === false}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <Label className="text-white/80">Enable blur</Label>
+                <Switch
+                  checked={localRestrictions.imageControls?.blurEnabled !== false}
+                  onCheckedChange={(checked) => handleChange('imageControls', 'blurEnabled', checked)}
+                  disabled={localRestrictions.imageControls?.enabled === false}
+                />
+              </div>
             </div>
           </AccordionContent>
         </AccordionItem>
@@ -207,88 +501,58 @@ export default function PresetRestrictionsPanel({ restrictions, onRestrictionsCh
               Shape Controls
             </div>
           </AccordionTrigger>
-          <AccordionContent className="px-6 pb-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <Label className="text-white/80">Enable rectangles</Label>
-              <Switch
-                checked={localRestrictions.shapeControls?.rectangleEnabled !== false}
-                onCheckedChange={(checked) => handleChange('shapeControls', 'rectangleEnabled', checked)}
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <Label className="text-white/80">Enable circles</Label>
-              <Switch
-                checked={localRestrictions.shapeControls?.circleEnabled !== false}
-                onCheckedChange={(checked) => handleChange('shapeControls', 'circleEnabled', checked)}
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <Label className="text-white/80">Enable lines</Label>
-              <Switch
-                checked={localRestrictions.shapeControls?.lineEnabled !== false}
-                onCheckedChange={(checked) => handleChange('shapeControls', 'lineEnabled', checked)}
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <Label className="text-white/80">Enable stars</Label>
-              <Switch
-                checked={localRestrictions.shapeControls?.starEnabled !== false}
-                onCheckedChange={(checked) => handleChange('shapeControls', 'starEnabled', checked)}
-              />
-            </div>
-          </AccordionContent>
-        </AccordionItem>
-
-        {/* Canvas Controls */}
-        <AccordionItem value="canvas" className="bg-white/5 rounded-lg border border-white/10">
-          <AccordionTrigger className="px-6 py-4 text-white/90 hover:text-white hover:no-underline">
-            <div className="flex items-center gap-3">
-              <Grid className="w-5 h-5 text-white/80" />
-              Canvas Controls
-            </div>
-          </AccordionTrigger>
-          <AccordionContent className="px-6 pb-6 space-y-4">
-            <div className="flex items-center justify-between">
+          <AccordionContent className="px-6 pb-6 space-y-6">
+            {/* Master toggle */}
+            <div className="flex items-center justify-between pb-4 border-b border-white/10">
               <div className="space-y-1">
-                <Label className="text-white/80 font-medium">Lock canvas size</Label>
-                <p className="text-xs text-white/60">Users cannot resize the canvas</p>
+                <Label className="text-white/80 font-medium">Disable all shape controls</Label>
+                <p className="text-xs text-white/60">Completely disable shape functionality</p>
               </div>
               <Switch
-                checked={localRestrictions.canvasControls?.lockCanvasSize || false}
-                onCheckedChange={(checked) => handleChange('canvasControls', 'lockCanvasSize', checked)}
+                checked={localRestrictions.shapeControls?.enabled === false}
+                onCheckedChange={(checked) => {
+                  // When toggle is ON (checked=true), we want to DISABLE (enabled=false)
+                  // When toggle is OFF (checked=false), we want to ENABLE (enabled=true)
+                  handleChange('shapeControls', 'enabled', !checked);
+                }}
               />
             </div>
-            {localRestrictions.canvasControls?.lockCanvasSize && (
-              <div className="bg-white/5 rounded-lg p-4 border border-white/10 space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-white/80 text-sm mb-2 block">Width (px)</Label>
-                    <Input
-                      type="number"
-                      value={localRestrictions.canvasControls?.defaultWidth || 1500}
-                      onChange={(e) => handleChange('canvasControls', 'defaultWidth', parseInt(e.target.value) || 1500)}
-                      className="bg-white/10 border-white/20 text-white"
-                      min="100"
-                      max="5000"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-white/80 text-sm mb-2 block">Height (px)</Label>
-                    <Input
-                      type="number"
-                      value={localRestrictions.canvasControls?.defaultHeight || 1500}
-                      onChange={(e) => handleChange('canvasControls', 'defaultHeight', parseInt(e.target.value) || 1500)}
-                      className="bg-white/10 border-white/20 text-white"
-                      min="100"
-                      max="5000"
-                    />
-                  </div>
-                </div>
-                <p className="text-xs text-white/60">
-                  Canvas will be locked to <strong>{localRestrictions.canvasControls?.defaultWidth || 1500}x{localRestrictions.canvasControls?.defaultHeight || 1500}px</strong>
-                </p>
+            
+            {/* Individual controls */}
+            <div className={`space-y-4 ${localRestrictions.shapeControls?.enabled === false ? 'opacity-50 pointer-events-none' : ''}`}>
+              <div className="flex items-center justify-between">
+                <Label className="text-white/80">Enable rectangles</Label>
+                <Switch
+                  checked={localRestrictions.shapeControls?.rectangleEnabled !== false}
+                  onCheckedChange={(checked) => handleChange('shapeControls', 'rectangleEnabled', checked)}
+                  disabled={localRestrictions.shapeControls?.enabled === false}
+                />
               </div>
-            )}
+              <div className="flex items-center justify-between">
+                <Label className="text-white/80">Enable circles</Label>
+                <Switch
+                  checked={localRestrictions.shapeControls?.circleEnabled !== false}
+                  onCheckedChange={(checked) => handleChange('shapeControls', 'circleEnabled', checked)}
+                  disabled={localRestrictions.shapeControls?.enabled === false}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <Label className="text-white/80">Enable lines</Label>
+                <Switch
+                  checked={localRestrictions.shapeControls?.lineEnabled !== false}
+                  onCheckedChange={(checked) => handleChange('shapeControls', 'lineEnabled', checked)}
+                  disabled={localRestrictions.shapeControls?.enabled === false}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <Label className="text-white/80">Enable stars</Label>
+                <Switch
+                  checked={localRestrictions.shapeControls?.starEnabled !== false}
+                  onCheckedChange={(checked) => handleChange('shapeControls', 'starEnabled', checked)}
+                  disabled={localRestrictions.shapeControls?.enabled === false}
+                />
+              </div>
+            </div>
           </AccordionContent>
         </AccordionItem>
 

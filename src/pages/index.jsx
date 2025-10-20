@@ -7,6 +7,7 @@ import TestPage from "./test";
 import PresetsDashboard from "./PresetsDashboard";
 import UserManagementPage from "./UserManagementPage";
 import AdminDashboard from "../components/AdminDashboard";
+import ProtectedRoute from "../components/ProtectedRoute";
 
 import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
 
@@ -68,8 +69,16 @@ function PagesContent() {
     return (
         <Layout currentPageName={currentPage}>
             <Routes>            
-                <Route path="/generator" element={<ImageGenerator />} />
-                <Route path="/ImageGenerator" element={<ImageGenerator />} />
+                <Route path="/generator" element={
+                    <ProtectedRoute>
+                        <ImageGenerator />
+                    </ProtectedRoute>
+                } />
+                <Route path="/ImageGenerator" element={
+                    <ProtectedRoute>
+                        <ImageGenerator />
+                    </ProtectedRoute>
+                } />
             </Routes>
         </Layout>
     );
