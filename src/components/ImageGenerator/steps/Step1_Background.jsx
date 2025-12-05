@@ -177,17 +177,28 @@ export default function Step1Background({
       return;
     }
 
-    const centerX = backgroundImageX + (naturalWidth * oldScale) / 2;
-    const centerY = backgroundImageY + (naturalHeight * oldScale) / 2;
+    // Calculate fitScale (same as in CanvasPreview) to match actual rendered size
+    const fitScale = Math.min(canvasWidth / naturalWidth, canvasHeight / naturalHeight);
+    
+    // Calculate old and new scaled dimensions (fitScale * userScale)
+    const oldScaledWidth = naturalWidth * fitScale * oldScale;
+    const oldScaledHeight = naturalHeight * fitScale * oldScale;
+    const newScaledWidth = naturalWidth * fitScale * newScale;
+    const newScaledHeight = naturalHeight * fitScale * newScale;
 
-    const newX = centerX - (naturalWidth * newScale) / 2;
-    const newY = centerY - (naturalHeight * newScale) / 2;
+    // Find current center of the image
+    const centerX = backgroundImageX + oldScaledWidth / 2;
+    const centerY = backgroundImageY + oldScaledHeight / 2;
+
+    // Calculate new position to keep the same center point
+    const newX = centerX - newScaledWidth / 2;
+    const newY = centerY - newScaledHeight / 2;
 
     setBackgroundImageScale(newScale);
     setBackgroundImageX(newX);
     setBackgroundImageY(newY);
     if (onBackgroundChange) onBackgroundChange();
-  }, [backgroundImageX, backgroundImageY, backgroundImageScale, backgroundImageNaturalDimensions, setBackgroundImageScale, setBackgroundImageX, setBackgroundImageY, onBackgroundChange]);
+  }, [backgroundImageX, backgroundImageY, backgroundImageScale, backgroundImageNaturalDimensions, canvasWidth, canvasHeight, setBackgroundImageScale, setBackgroundImageX, setBackgroundImageY, onBackgroundChange]);
 
   // Early returns after all hooks are called
   if (adminSettings?.backgroundControls?.locked) {

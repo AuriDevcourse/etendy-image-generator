@@ -15,6 +15,7 @@ import Step5Download from '../components/ImageGenerator/steps/Step5_Download';
 import LayersPanel from '../components/ImageGenerator/LayersPanel';
 import TemplatesPanel from '../components/ImageGenerator/TemplatesPanel';
 import ColorPicker from '../components/ImageGenerator/ColorPicker';
+import ColorPalettePanel from '../components/ImageGenerator/ColorPalettePanel';
 import Gallery from '../components/ImageGenerator/Gallery';
 import AdminPanel from '../components/ImageGenerator/AdminPanel'; // Import AdminPanel
 import UserProfile from '../components/UserProfile/UserProfile';
@@ -199,6 +200,7 @@ export default function ImageGeneratorPage() {
   const [showGalleryDot, setShowGalleryDot] = useState(true);
   const [showLayersPanel, setShowLayersPanel] = useState(false);
   const [showTemplatesPanel, setShowTemplatesPanel] = useState(false);
+  const [showColorPalettePanel, setShowColorPalettePanel] = useState(false);
   
   // Notification and UX states
   const [notification, setNotification] = useState(null);
@@ -334,6 +336,7 @@ export default function ImageGeneratorPage() {
         setShowTemplatesPanel(false);
         setShowLayersPanel(false);
         setShowGalleryPanel(false);
+        setShowColorPalettePanel(false);
       }
       return next;
     });
@@ -365,10 +368,16 @@ export default function ImageGeneratorPage() {
     };
     
     // Save current design to localStorage for admin preset creation
+    // Skip saving if backgroundImage is too large (> 1MB base64)
     try {
-      localStorage.setItem('etendy_current_design', JSON.stringify(currentState));
+      const stateToSave = { ...currentState };
+      if (stateToSave.backgroundImage && stateToSave.backgroundImage.length > 1000000) {
+        stateToSave.backgroundImage = null; // Don't save large images to localStorage
+      }
+      localStorage.setItem('etendy_current_design', JSON.stringify(stateToSave));
     } catch (error) {
-      console.error('Failed to save current design to localStorage:', error);
+      // Silently fail - localStorage quota exceeded or unavailable
+      // This is non-critical functionality for admin preset creation
     }
     
     setHistory(prev => {
@@ -1845,6 +1854,10 @@ export default function ImageGeneratorPage() {
     setShowTemplatesPanel(!showTemplatesPanel);
   };
 
+  const handleColorPalettePanelToggle = () => {
+    setShowColorPalettePanel(!showColorPalettePanel);
+  };
+
   const handleBackgroundChange = useCallback(() => {
     if (showCanvasBackgroundOverlay) {
       setShowCanvasBackgroundOverlay(false);
@@ -1883,8 +1896,11 @@ export default function ImageGeneratorPage() {
         bgImg.onload = () => {
           const naturalWidth = bgImg.naturalWidth || bgImg.width;
           const naturalHeight = bgImg.naturalHeight || bgImg.height;
-          const scaledWidth = naturalWidth * backgroundImageScale;
-          const scaledHeight = naturalHeight * backgroundImageScale;
+          
+          // Calculate fitScale (same as CanvasPreview) to match preview rendering
+          const fitScale = Math.min(canvasWidth / naturalWidth, canvasHeight / naturalHeight);
+          const scaledWidth = naturalWidth * fitScale * backgroundImageScale;
+          const scaledHeight = naturalHeight * fitScale * backgroundImageScale;
           
           // Apply blur filter if set
           if (backgroundImageBlur > 0) {
@@ -2936,18 +2952,18 @@ export default function ImageGeneratorPage() {
       `}</style>
 
       {/* User Authentication Panel - Show for both admins and regular users */}
-      <div className="fixed top-4 left-4 z-[200] flex gap-2">
+      <div className="fixed top-4 left-4 z-[200] flex flex-col md:flex-row gap-2 max-w-[calc(100vw-180px)] md:max-w-none">
         {/* Logo - Always visible */}
         <Button 
           onClick={() => navigate('/')}
-          className="h-12 px-3 bg-transparent !border-0 shadow-none flex items-center justify-center hover:opacity-80 transition-all duration-300"
+          className="h-10 md:h-12 px-3 bg-transparent !border-0 shadow-none flex items-center justify-center hover:opacity-80 transition-all duration-300"
           variant="ghost"
           title="Go to Home"
         >
-          <img src={sattendWhiteLogo} alt="Sattend" className="h-10" />
+          <img src={sattendWhiteLogo} alt="Sattend" className="h-8 md:h-10" />
         </Button>
 
-        {/* User Authentication Buttons */}
+        {/* User Authentication - Show admin or regular user */}
         {adminUser ? (
           <div className="flex gap-2">
             <Button 
@@ -2994,11 +3010,11 @@ export default function ImageGeneratorPage() {
             data-tour="sign-in-button"
             onClick={(e) => { e.stopPropagation(); handleUserLogin(); }}
             disabled={isCheckingAdmin}
-            className="px-4 py-2 bg-orange-500/20 border border-orange-500/30 rounded-xl backdrop-blur-xl flex items-center gap-2 hover:bg-orange-500/30 transition-all duration-300 text-orange-300"
+            className="w-full md:w-auto px-3 md:px-4 py-2 bg-orange-500/20 border border-orange-500/30 rounded-xl backdrop-blur-xl flex items-center justify-center gap-2 hover:bg-orange-500/30 transition-all duration-300 text-orange-300 text-sm md:text-base"
             title="Sign in with Google to unlock: Save Templates, Save to Gallery, Cross-device Sync, Track Statistics, and more!"
           >
-            <UserIcon className="w-5 h-5" />
-            {isCheckingAdmin ? 'Checking...' : 'Sign In'}
+            <UserIcon className="w-4 h-4 md:w-5 md:h-5" />
+            <span>{isCheckingAdmin ? 'Checking...' : 'Sign In'}</span>
           </Button>
         )}
       </div>
@@ -3063,17 +3079,17 @@ export default function ImageGeneratorPage() {
       )}
 
       {/* Control Icons - Fixed in corner */}
-      <div className="fixed top-4 right-4 z-30 flex items-start gap-2">
+      <div className="fixed top-4 right-4 z-30 flex items-start gap-1 sm:gap-2">
         {/* Templates Panel Control - Hide if disabled */}
         {(!adminSettings || adminSettings.generalControls?.templatesEnabled !== false) && (
           <div className="relative">
             <button 
               data-tour="templates-button"
               onClick={(e) => { e.stopPropagation(); handleTemplatesPanelToggle(); }}
-              className="w-12 h-12 bg-white/20 border border-white/30 rounded-xl backdrop-blur-xl flex items-center justify-center transition-opacity hover:opacity-80 text-white/90 relative shadow-lg"
+              className="w-10 h-10 sm:w-12 sm:h-12 bg-white/20 border border-white/30 rounded-xl backdrop-blur-xl flex items-center justify-center transition-opacity hover:opacity-80 text-white/90 relative shadow-lg"
               title="Templates - Save & load design templates (max 4 per preset, requires login)"
             >
-              <Save className="w-6 h-6" />
+              <Save className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
             
             {showTemplatesPanel && (
@@ -3105,16 +3121,54 @@ export default function ImageGeneratorPage() {
           </div>
         )}
 
+        {/* Color Palette Panel Control - Only show when preset is active */}
+        {currentPreset && (
+          <div className="relative">
+            <button 
+              data-tour="color-palette-button"
+              onClick={(e) => { e.stopPropagation(); handleColorPalettePanelToggle(); }}
+              className="w-10 h-10 sm:w-12 sm:h-12 bg-white/20 border border-white/30 rounded-xl backdrop-blur-xl flex items-center justify-center transition-opacity hover:opacity-80 text-white/90 relative shadow-lg"
+              title="Color Palette - View all colors used in this design"
+            >
+              <Palette className="w-5 h-5 sm:w-6 sm:h-6" />
+            </button>
+            
+            {showColorPalettePanel && (
+              <>
+               {/* Backdrop for closing panel */}
+                <div 
+                  className="fixed inset-0 z-20"
+                  onClick={(e) => { e.stopPropagation(); handleColorPalettePanelToggle(); }}
+                />
+                <div 
+                  className="absolute top-14 right-0 w-80 glass-panel border border-white/20 backdrop-blur-xl bg-white/10 rounded-xl p-4 z-30 animate-fade-in"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <button onClick={(e) => { e.stopPropagation(); handleColorPalettePanelToggle(); }} className="absolute top-2 right-2 text-white/70 hover:text-white transition-colors z-10">
+                    <X className="w-5 h-5" />
+                  </button>
+                  <ColorPalettePanel 
+                    elements={elements}
+                    backgroundColor={backgroundColor}
+                    gradientColor1={gradientColor1}
+                    gradientColor2={gradientColor2}
+                  />
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
         {/* Layers Panel Control - Hide if disabled */}
         {(!adminSettings || adminSettings.generalControls?.layersEnabled !== false) && (
           <div className="relative">
             <button 
               data-tour="layers-button"
               onClick={(e) => { e.stopPropagation(); handleLayersPanelToggle(); }}
-              className="w-12 h-12 bg-white/20 border border-white/30 rounded-xl backdrop-blur-xl flex items-center justify-center transition-opacity hover:opacity-80 text-white/90 relative shadow-lg"
+              className="w-10 h-10 sm:w-12 sm:h-12 bg-white/20 border border-white/30 rounded-xl backdrop-blur-xl flex items-center justify-center transition-opacity hover:opacity-80 text-white/90 relative shadow-lg"
               title="Layers - View, reorder, lock, and manage all canvas elements"
             >
-              <Layers className="w-6 h-6" />
+              <Layers className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
             
             {showLayersPanel && (
@@ -3151,10 +3205,10 @@ export default function ImageGeneratorPage() {
             <button 
               data-tour="gallery-button"
               onClick={(e) => { e.stopPropagation(); handleGalleryPanelToggle(); }}
-              className="w-12 h-12 bg-white/20 border border-white/30 rounded-xl backdrop-blur-xl flex items-center justify-center transition-opacity hover:opacity-80 text-white/90 relative shadow-lg"
+              className="w-10 h-10 sm:w-12 sm:h-12 bg-white/20 border border-white/30 rounded-xl backdrop-blur-xl flex items-center justify-center transition-opacity hover:opacity-80 text-white/90 relative shadow-lg"
               title="Gallery - View & manage saved images (requires login, syncs across devices)"
             >
-              <Heart className="w-6 h-6" />
+              <Heart className="w-5 h-5 sm:w-6 sm:h-6" />
               {showGalleryDot && galleryImages.length > 0 && (
                 <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
               )}
@@ -3196,8 +3250,8 @@ export default function ImageGeneratorPage() {
 
           {/* Main Grid - Fixed height layout */}
           <div className="grid lg:grid-cols-3 gap-6 h-[calc(100vh-12rem)]">
-            {/* Left Column - Preview */}
-            <div className="lg:col-span-2 flex justify-center items-start overflow-auto">
+            {/* Left Column - Preview - Show second on mobile */}
+            <div className="lg:col-span-2 flex justify-center items-start overflow-auto lg:order-1">
               <CanvasPreview
                 elements={elements} 
                 setElements={setElements}
@@ -3265,8 +3319,8 @@ export default function ImageGeneratorPage() {
               />
             </div>
 
-            {/* Right Column - Controls (Unified Panel) - Fixed height with scroll */}
-            <div className="flex flex-col h-full overflow-hidden">
+            {/* Right Column - Controls (Unified Panel) - Show first on mobile, fixed height with scroll */}
+            <div className="flex flex-col h-full overflow-hidden lg:order-2">
               {/* Tab/Panel Navigator */}
               <div className="grid grid-cols-3 md:grid-cols-5 gap-1 mb-4 bg-white/10 rounded-xl p-1 border border-white/20 glass-panel">
                 {/* Background Panel Tab */}

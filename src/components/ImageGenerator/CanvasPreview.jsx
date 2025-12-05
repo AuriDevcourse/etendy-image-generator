@@ -316,8 +316,15 @@ export default function CanvasPreview({
           const bgImg = await loadImage(backgroundImage);
           const naturalWidth = bgImg.naturalWidth || bgImg.width;
           const naturalHeight = bgImg.naturalHeight || bgImg.height;
-          const scaledWidth = naturalWidth * backgroundImageScale;
-          const scaledHeight = naturalHeight * backgroundImageScale;
+          
+          // Calculate scale to fit image within canvas (contain mode)
+          const scaleX = canvasWidth / naturalWidth;
+          const scaleY = canvasHeight / naturalHeight;
+          const fitScale = Math.min(scaleX, scaleY); // Use smaller scale to fit within bounds
+          
+          // Apply both fit scale and user scale
+          const scaledWidth = naturalWidth * fitScale * backgroundImageScale;
+          const scaledHeight = naturalHeight * fitScale * backgroundImageScale;
           
           // Create offscreen canvas for caching
           const offscreenCanvas = document.createElement('canvas');
@@ -341,8 +348,19 @@ export default function CanvasPreview({
         const bgImg = await loadImage(backgroundImage);
         const naturalWidth = bgImg.naturalWidth || bgImg.width;
         const naturalHeight = bgImg.naturalHeight || bgImg.height;
-        const scaledWidth = naturalWidth * backgroundImageScale;
-        const scaledHeight = naturalHeight * backgroundImageScale;
+        
+        // Calculate scale to fit image within canvas (contain mode)
+        const scaleX = canvasWidth / naturalWidth;
+        const scaleY = canvasHeight / naturalHeight;
+        const fitScale = Math.min(scaleX, scaleY); // Use smaller scale to fit within bounds
+        
+        // Apply both fit scale and user scale
+        const scaledWidth = naturalWidth * fitScale * backgroundImageScale;
+        const scaledHeight = naturalHeight * fitScale * backgroundImageScale;
+        
+        // Center the image on canvas if no custom position is set
+        const centeredX = backgroundImageX || (canvasWidth - scaledWidth) / 2;
+        const centeredY = backgroundImageY || (canvasHeight - scaledHeight) / 2;
         
         // Apply border radius and border if specified in admin settings
         if ((backgroundImageBorderRadius && backgroundImageBorderRadius > 0) || (backgroundImageBorderWidth && backgroundImageBorderWidth > 0)) {
@@ -1775,49 +1793,50 @@ export default function CanvasPreview({
     <div className="w-full">
       <style>{`.is-dragging-on-canvas * { cursor: grabbing !important; }`}</style>
       
-
-      {/* Canvas Container */}
-      <div className="mx-16 relative rounded-xl overflow-hidden border border-white/20 bg-black/20" style={{ aspectRatio: `${canvasWidth}/${canvasHeight}` }} data-tour="canvas">
-        <canvas ref={canvasRef} width={canvasWidth} height={canvasHeight} className="w-full h-full object-contain" onMouseDown={handleMouseDown} onContextMenu={handleContextMenu} onDoubleClick={handleDoubleClick}/>
-        
-        {!fontsLoaded && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-            <div className="text-white/80 text-center">
-              <div className="animate-spin w-8 h-8 border-2 border-white/20 border-t-white/80 rounded-full mx-auto mb-2"></div>
-              <p>Loading fonts...</p>
+      {/* Canvas and Footer Wrapper - ensures footer always aligns with canvas */}
+      <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
+        {/* Canvas Container */}
+        <div className="relative rounded-xl overflow-hidden border border-white/20 bg-black/20" style={{ aspectRatio: `${canvasWidth}/${canvasHeight}`, maxHeight: 'min(calc(100vh - 320px), 400px)' }} data-tour="canvas">
+          <canvas ref={canvasRef} width={canvasWidth} height={canvasHeight} className="w-full h-full object-contain" onMouseDown={handleMouseDown} onContextMenu={handleContextMenu} onDoubleClick={handleDoubleClick}/>
+          
+          {!fontsLoaded && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+              <div className="text-white/80 text-center">
+                <div className="animate-spin w-8 h-8 border-2 border-white/20 border-t-white/80 rounded-full mx-auto mb-2"></div>
+                <p>Loading fonts...</p>
+              </div>
             </div>
-          </div>
-        )}
-        
-        {(isDownloading || isSaving || isSavingTemplate) && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-            <div className="text-white/90 text-center bg-black/50 rounded-lg p-4">
-              <div className="animate-spin w-8 h-8 border-2 border-white/20 border-t-white/80 rounded-full mx-auto mb-2"></div>
-              <p className="font-medium">
-                {isSavingTemplate ? 'Saving Template...' : 
-                 isSaving ? 'Saving to Gallery...' : 
-                 'Preparing Download...'}
-              </p>
-              <p className="text-sm text-white/70 mt-1">This may take a moment</p>
+          )}
+          
+          {(isDownloading || isSaving || isSavingTemplate) && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-sm">
+              <div className="text-white/90 text-center bg-black/50 rounded-lg p-4">
+                <div className="animate-spin w-8 h-8 border-2 border-white/20 border-t-white/80 rounded-full mx-auto mb-2"></div>
+                <p className="font-medium">
+                  {isSavingTemplate ? 'Saving Template...' : 
+                   isSaving ? 'Saving to Gallery...' : 
+                   'Preparing Download...'}
+                </p>
+                <p className="text-sm text-white/70 mt-1">This may take a moment</p>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* This is where a CropOverlay might be rendered, based on `isCropping` prop */}
-        {/* Example:
-        {isCropping && selectedElementId && (
-          <CropOverlay 
-            element={elements.find(el => el.id === selectedElementId)}
-            updateElement={updateElement}
-            canvasWidth={canvasWidth}
-            canvasHeight={canvasHeight}
-          />
-        )}
-        */}
-      </div>
+          {/* This is where a CropOverlay might be rendered, based on `isCropping` prop */}
+          {/* Example:
+          {isCropping && selectedElementId && (
+            <CropOverlay 
+              element={elements.find(el => el.id === selectedElementId)}
+              updateElement={updateElement}
+              canvasWidth={canvasWidth}
+              canvasHeight={canvasHeight}
+            />
+          )}
+          */}
+        </div>
 
-      {/* Canvas Footer */}
-      <div className="flex items-center justify-between mt-3 px-16 text-white/80"> {/* Added px-16 for horizontal alignment */}
+        {/* Canvas Footer */}
+        <div className="flex items-center mt-3 text-white/80">
         <div className="flex items-center gap-3">
           {adminSettings?.generalControls?.resetEnabled !== false && onCanvasReset && (
             <Button onClick={onCanvasReset} size="sm" className="text-white hover:bg-white/20 bg-white/10 backdrop-blur-sm border-0" title="Reset Canvas">
@@ -1857,9 +1876,8 @@ export default function CanvasPreview({
               <Save className="w-4 h-4" />
             </Button>
           )}
-        </div>
-        <div className="flex items-center gap-3">
-          {/* Removed: Save to Gallery, Save as Template, and Download buttons */}
+          
+          {/* Canvas Size Button */}
           {(!presetRestrictions?.canvasControls?.lockCanvasSize && !adminSettings?.canvasControls?.lockCanvasSize) && (
             <Popover open={showBottomCanvasSizePanel} onOpenChange={setShowBottomCanvasSizePanel}>
               <PopoverTrigger asChild>
@@ -1940,6 +1958,7 @@ export default function CanvasPreview({
             </Popover>
           )}
         </div>
+      </div>
       </div>
 
       {/* Context Menu */}
