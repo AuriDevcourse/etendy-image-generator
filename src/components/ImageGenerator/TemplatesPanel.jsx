@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
-import { Template } from "@/api/entities";
+import { templateService } from "@/lib/supabase";
 import { Palette, Trash2, X, Edit, Star } from "lucide-react";
 import EditTemplateModal from './EditTemplateModal';
 
@@ -23,7 +23,7 @@ export default function TemplatesPanel({
 
   const handleSaveEdit = async (templateId, newName, newColor) => {
     try {
-      await Template.update(templateId, { name: newName, tag_color: newColor });
+      await templateService.updateTemplate(templateId, { name: newName, tag_color: newColor });
       onRefresh();
     } catch (error) {
       console.error('Failed to update template:', error);

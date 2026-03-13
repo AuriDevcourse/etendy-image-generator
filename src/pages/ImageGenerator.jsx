@@ -1,10 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { UploadFile } from "@/api/integrations";
-import { GeneratedImage } from "@/api/entities";
-import { Template } from "@/api/entities";
-import { User } from "@/api/entities"; // Assuming User entity exists for role checking
-import { AdminSettings } from '@/api/entities'; // Import AdminSettings
-import { supabase, presetService, authService, userService, adminSettingsService, templateService, roleService } from '../lib/supabase';
+import { supabase, presetService, authService, userService, adminSettingsService, storageService, templateService, roleService } from '../lib/supabase';
 
 import CanvasPreview from '../components/ImageGenerator/CanvasPreview';
 import Step1Background from '../components/ImageGenerator/steps/Step1_Background';
@@ -2408,7 +2403,7 @@ export default function ImageGeneratorPage() {
   const handleSetDefaultTemplate = useCallback(async (templateId) => {
     if (!currentUser) return;
     try {
-        await User.updateMyUserData({ default_template_id: templateId });
+        await userService.saveUserPreferences(currentUser.id, { default_template_id: templateId });
         setCurrentUser(prev => ({...prev, default_template_id: templateId }));
         alert("Default preset updated!");
     } catch(error) {
@@ -2525,7 +2520,7 @@ export default function ImageGeneratorPage() {
   const handleClearGallery = useCallback(async () => {
     try {
       // Delete all gallery images from the backend
-      await Promise.all(galleryImages.map(image => GeneratedImage.delete(image.id)));
+      await Promise.all(galleryImages.map(image => storageService.deleteImage(image.path)));
       setGalleryImages([]); // Clear local state
       setShowGalleryPanel(false); // Hide gallery panel as it's empty
       setLightboxIndex(null); // Close lightbox if open
@@ -2668,15 +2663,15 @@ export default function ImageGeneratorPage() {
   };
 
   const handleLogout = async () => {
-    await User.logout();
+    await authService.signOut();
     window.location.reload(); // Reload to reset app state
   };
 
   const handleDeleteImage = useCallback(async (imageId) => {
     try {
-      await GeneratedImage.delete(imageId);
-      // After deleting, we need to re-fetch and also check if the lightbox needs to be closed
-      const newImages = await GeneratedImage.list('-created_date');
+      await storageService.deleteImage(imageId);
+      // After deleting, update local state
+      const newImages = galleryImages.filter(img => img.path !== imageId && img.id !== imageId);
       setGalleryImages(newImages);
 
       if (newImages.length === 0) {
