@@ -4,19 +4,62 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-// Validate environment variables
-if (!supabaseUrl || !supabaseKey) {
-  throw new Error(
-    '❌ Missing Supabase environment variables.\n' +
-    'Please ensure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set in your .env.local file.\n' +
-    'See .env.example for reference.'
+const hasSupabase = Boolean(supabaseUrl && supabaseKey)
+
+if (!hasSupabase) {
+  console.warn(
+    '⚠️ Supabase env vars missing — running in standalone mode. ' +
+    'Presets, storage, and auth features are disabled. ' +
+    'Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env.local to enable them.'
   )
 }
 
-console.log('🔍 Supabase URL:', supabaseUrl)
-console.log('🔍 Supabase Key exists:', !!supabaseKey)
+// Stub client so the app still boots without Supabase configured.
+// Every chained call returns a thenable that resolves to { data: null, error: ... }.
+function createStubClient() {
+  const noResult = { data: null, error: { message: 'Supabase not configured' } }
+  const chain = {
+    select: () => chain,
+    insert: () => chain,
+    update: () => chain,
+    upsert: () => chain,
+    delete: () => chain,
+    eq: () => chain,
+    neq: () => chain,
+    in: () => chain,
+    is: () => chain,
+    or: () => chain,
+    order: () => chain,
+    limit: () => chain,
+    range: () => chain,
+    single: () => chain,
+    maybeSingle: () => chain,
+    then: (resolve) => Promise.resolve(noResult).then(resolve),
+  }
+  return {
+    from: () => chain,
+    auth: {
+      getUser: async () => ({ data: { user: null }, error: null }),
+      getSession: async () => ({ data: { session: null }, error: null }),
+      signInWithOAuth: async () => noResult,
+      signOut: async () => ({ error: null }),
+      onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+    },
+    storage: {
+      from: () => ({
+        upload: async () => noResult,
+        download: async () => noResult,
+        remove: async () => noResult,
+        list: async () => noResult,
+        getPublicUrl: () => ({ data: { publicUrl: '' } }),
+      }),
+    },
+  }
+}
 
-export const supabase = createClient(supabaseUrl, supabaseKey)
+export const supabase = hasSupabase
+  ? createClient(supabaseUrl, supabaseKey)
+  : createStubClient()
 
 // Helper functions for admin presets
 export const presetService = {
