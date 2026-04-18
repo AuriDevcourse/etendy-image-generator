@@ -57,9 +57,30 @@ function createStubClient() {
   }
 }
 
+// Disable auto-refresh / session persistence — there's no login flow,
+// so we don't want the client retrying token refresh against a stale or
+// unreachable Supabase URL on every page load.
 export const supabase = hasSupabase
-  ? createClient(supabaseUrl, supabaseKey)
+  ? createClient(supabaseUrl, supabaseKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+      },
+    })
   : createStubClient()
+
+// Clear any leftover Supabase session tokens from a previous login system,
+// so the client doesn't try to refresh them.
+if (typeof window !== 'undefined') {
+  try {
+    Object.keys(window.localStorage)
+      .filter((k) => k.startsWith('sb-') || k.includes('supabase'))
+      .forEach((k) => window.localStorage.removeItem(k))
+  } catch {
+    // localStorage may be unavailable (private mode, etc.) — safe to ignore.
+  }
+}
 
 // Helper functions for admin presets
 export const presetService = {
