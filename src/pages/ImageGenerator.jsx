@@ -219,7 +219,7 @@ export default function ImageGeneratorPage() {
   const [saveErrorMessage, setSaveErrorMessage] = useState('');
   const [isLoadingGallery, setIsLoadingGallery] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
-  const [isPageLoading, setIsPageLoading] = useState(true); // Initial page load
+  const [isPageLoading, setIsPageLoading] = useState(false); // Initial page load
 
   // Preset State
   const [currentPreset, setCurrentPreset] = useState(null);
@@ -1540,64 +1540,14 @@ export default function ImageGeneratorPage() {
     loadPresetFromUrl();
   }, []); // Run once on mount
 
-  // Check for user authentication on page load
+  // Auth check disabled — app runs in open-access mode with no login.
   useEffect(() => {
-    const checkUserAuth = async () => {
-      setIsCheckingAdmin(true);
-      setIsPageLoading(true); // Start page loading
-      try {
-        const user = await authService.getCurrentUser();
-        if (user && user.email) {
-          // Check user role from new role system
-          const isSuperAdminUser = await roleService.isSuperAdmin(user.id);
-          const isAdminUser = await roleService.isAdmin(user.id); // This checks for both admin and super_admin
-          
-          if (isSuperAdminUser) {
-            setAdminUser(user);
-            setIsAdmin(true);
-            setIsSuperAdmin(true);
-            console.log('✅ Super Admin user authenticated:', user.email);
-          } else if (isAdminUser) {
-            // Regular admin (not super admin)
-            setAdminUser(user);
-            setIsAdmin(true);
-            setIsSuperAdmin(false);
-            console.log('✅ Admin user authenticated:', user.email);
-          } else {
-            // Regular user
-            setRegularUser(user);
-            setCurrentUser(user);
-            setIsSuperAdmin(false);
-            console.log('✅ Regular user authenticated:', user.email);
-            
-            // Initialize user profile if first time
-            await userService.initializeUserProfile(user);
-            
-            // Load user preferences
-            const preferences = await userService.getUserPreferences(user.id);
-            if (preferences) {
-              setUserPreferences(preferences);
-              console.log('✅ User preferences loaded');
-            }
-          }
-        }
-      } catch (error) {
-        console.error('❌ User auth check failed:', error);
-      } finally {
-        setIsCheckingAdmin(false);
-        // End page loading after a short delay to ensure everything is rendered
-        setTimeout(() => {
-          setIsPageLoading(false);
-          // Check if user has completed the tour
-          const tourCompleted = localStorage.getItem('etendy_tour_completed');
-          if (!tourCompleted) {
-            setShowTooltipTour(true);
-          }
-        }, 500);
-      }
-    };
-
-    checkUserAuth();
+    setIsCheckingAdmin(false);
+    setIsPageLoading(false);
+    const tourCompleted = localStorage.getItem('etendy_tour_completed');
+    if (!tourCompleted) {
+      setShowTooltipTour(true);
+    }
   }, []);
 
   // Admin login function
@@ -3000,18 +2950,7 @@ export default function ImageGeneratorPage() {
               <LogOut className="w-6 h-6" />
             </Button>
           </div>
-        ) : (
-          <Button 
-            data-tour="sign-in-button"
-            onClick={(e) => { e.stopPropagation(); handleUserLogin(); }}
-            disabled={isCheckingAdmin}
-            className="w-full md:w-auto px-3 md:px-4 py-2 bg-orange-500/20 border border-orange-500/30 rounded-xl backdrop-blur-xl flex items-center justify-center gap-2 hover:bg-orange-500/30 transition-all duration-300 text-orange-300 text-sm md:text-base"
-            title="Sign in with Google to unlock: Save Templates, Save to Gallery, Cross-device Sync, Track Statistics, and more!"
-          >
-            <UserIcon className="w-4 h-4 md:w-5 md:h-5" />
-            <span>{isCheckingAdmin ? 'Checking...' : 'Sign In'}</span>
-          </Button>
-        )}
+        ) : null}
       </div>
 
       {/* Admin Panel */}
