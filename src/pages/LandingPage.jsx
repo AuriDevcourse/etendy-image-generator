@@ -33,19 +33,10 @@ export default function LandingPage() {
     return () => clearInterval(interval);
   }, []);
 
-  const handleTryNow = async () => {
-    // Check if user is logged in
-    const currentUser = await authService.getCurrentUser();
-    
+  const handleTryNow = () => {
     setIsTransitioning(true);
     setTimeout(() => {
-      if (currentUser) {
-        // User is logged in, go to generator
-        navigate('/generator');
-      } else {
-        // User is not logged in, redirect to Google login
-        authService.signInWithGoogle();
-      }
+      navigate('/generator');
     }, 500); // Wait for fade-out animation
   };
 
